@@ -1,0 +1,38 @@
+version: "3.7"
+
+services:
+  postgres:
+    hostname: postgres
+    image: postgres:13-alpine
+    container_name: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pgorm_spec
+    ports:
+      - "5432:5432"
+
+  pgorm:
+    build:
+      context: ${PWD}
+      dockerfile: Dockerfile.${PGORM_ENV:-spec}
+      args:
+        CRYSTAL_VERSION: ${CRYSTAL_VERSION:-1.5.0}
+    hostname: pgorm
+    container_name: pgorm
+    volumes:
+      - ${PWD}/spec:/app/spec
+      - ${PWD}/src:/app/src
+    environment:
+      GITHUB_ACTION: ${GITHUB_ACTION:-}
+
+      ## PostgreSQL
+      PG_DATABASE_URL: ${PG_DATABASE_URL:-postgresql://postgres:password@postgres:5432/pgorm_spec}
+
+    depends_on:
+      - postgres

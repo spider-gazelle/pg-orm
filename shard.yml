@@ -1,0 +1,25 @@
+name: pg-orm
+version: 0.9.0
+crystal: ">=1.0.0"
+license: MIT
+authors:
+  - Ali Naqvi <ali@place.technology>
+
+dependencies:
+  active-model:
+    github: spider-gazelle/active-model
+    version: ~> 4.0
+  eventbus:
+    github: spider-gazelle/eventbus
+  future:
+    github: crystal-community/future.cr
+  habitat:
+    github: luckyframework/habitat
+  pg:
+    github: will/crystal-pg
+
+development_dependencies:
+  timecop:
+    github: crystal-community/timecop.cr
+  ameba:
+    github: crystal-ameba/ameba
