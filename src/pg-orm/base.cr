@@ -181,6 +181,16 @@ module PgORM
                   {{opts[:converter]}}.from_rs(rs)
                 {% elsif opts[:klass].stringify.starts_with?("Array") %}
                   rs.read({{opts[:klass]}})
+                {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Enum %}
+                  {% if opts[:klass].nilable? %}
+                     if (v = rs.read(Int32?))
+                      {{opts[:klass].union_types.reject(&.==(Nil)).first}}.from_value(v)
+                     else
+                        nil
+                     end
+                  {% else %}
+                  {{opts[:klass]}}.from_value(rs.read(Int32))
+                  {% end %}
                 {% elsif (::PgORM::Value).union_types.includes?(opts[:klass].union_types.reject(&.==(Nil)).first) == false %}
                    {{opts[:klass].union_types.reject(&.==(Nil)).first}}.from_json(JSON::Any.new(rs.read(JSON::PullParser{% if opts[:klass].nilable? %}?{% end %})).to_json)
                 {% else %}
@@ -230,7 +240,17 @@ module PgORM
                     {{opts[:converter]}}.from_rs(rs)
                   {% elsif opts[:klass].stringify.starts_with?("Array") %}
                     rs.read({{opts[:klass]}})
-                  {% elsif (::PgORM::Value).union_types.includes?(opts[:klass].union_types.reject(&.==(Nil)).first) == false %}
+                  {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Enum %}
+                    {% if opts[:klass].nilable? %}
+                      if (v = rs.read(Int32?))
+                        {{opts[:klass].union_types.reject(&.==(Nil)).first}}.from_value(v)
+                      else
+                          nil
+                      end
+                    {% else %}
+                      {{opts[:klass]}}.from_value(rs.read(Int32))
+                    {% end %}
+                 {% elsif (::PgORM::Value).union_types.includes?(opts[:klass].union_types.reject(&.==(Nil)).first) == false %}
                     {{ opts[:klass].union_types.reject(&.==(Nil)).first }}.from_json(JSON::Any.new(rs.read(JSON::PullParser{% if opts[:klass].nilable? %}?{% end %})).to_json)
                  {% else %}
                     rs.read({{opts[:klass]}})
@@ -273,6 +293,8 @@ module PgORM
           {% for name, opts in PERSIST %}
             {% if opts[:klass].stringify.starts_with?("Array") %}
             :{{name}} => PQ::Param.encode_array(@{{name}} || ([] of {{opts[:klass]}})),
+            {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Enum %}
+            :{{name}} => @{{name}}.try &.value, # || {{opts[:klass]}}.values.first.value,
             {% elsif (::PgORM::Value).union_types.includes?(opts[:klass].union_types.reject(&.==(Nil)).first) %}
             :{{name}} => @{{name}},
             {% else %}

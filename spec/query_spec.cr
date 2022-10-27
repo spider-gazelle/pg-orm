@@ -17,7 +17,7 @@ describe PgORM::Query do
       tree2 = Tree.new
 
       roots = Array(String).new(3) do
-        Root.create!(length: (rand * 10).to_f32).id.to_s
+        Root.create!(length: (rand * 10).to_f64).id.to_s
       end
 
       # Check all roots created
@@ -47,7 +47,7 @@ describe PgORM::Query do
       tree2 = Tree.new
 
       roots = Array(String).new(3) do
-        Root.create!(length: (rand * 10).to_f32).id.to_s
+        Root.create!(length: (rand * 10).to_f64).id.to_s
       end
 
       # Check all roots created
