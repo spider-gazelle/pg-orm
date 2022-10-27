@@ -36,6 +36,7 @@ Spec.before_suite do
     db.exec "DROP TABLE IF EXISTS converter"
     db.exec "DROP TABLE IF EXISTS tree"
     db.exec "DROP TABLE IF EXISTS root"
+    db.exec "DROP TABLE IF EXISTS enums"
     db.exec <<-SQL
     CREATE TABLE groups (
       id SERIAL NOT NULL PRIMARY KEY,
@@ -131,7 +132,17 @@ Spec.before_suite do
     db.exec <<-SQL
     CREATE TABLE root (
       id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-      length Float NOT NULL
+      length numeric NOT NULL
+    );
+    SQL
+
+    db.exec <<-SQL
+    CREATE TABLE enums (
+      id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      status int,
+      role int NOT NULL,
+      permissions int NOT NULL,
+      active boolean NOT NULL
     );
     SQL
   end
@@ -159,5 +170,6 @@ Spec.after_suite do
     db.exec "DROP TABLE IF EXISTS converter"
     db.exec "DROP TABLE IF EXISTS tree"
     db.exec "DROP TABLE IF EXISTS root"
+    db.exec "DROP TABLE IF EXISTS enums"
   end
 end

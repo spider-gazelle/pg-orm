@@ -49,7 +49,7 @@ class Tree < PgORM::Base
 end
 
 class Root < PgORM::Base
-  attribute length : Float32
+  attribute length : Float64
 end
 
 # Timestamps
@@ -260,4 +260,31 @@ class ConvertedFields < PgORM::Base
   table "converter"
   attribute name : String
   attribute time : Time, converter: Time::EpochConverter
+end
+
+class EnumFields < PgORM::Base
+  table :enums
+
+  enum Status
+    Opened
+    Closed
+    Duplicated
+  end
+
+  enum Role
+    Issue    = 1
+    Bug      = 2
+    Critical = 3
+  end
+
+  @[Flags]
+  enum Permissions : Int64
+    Read
+    Write
+  end
+
+  attribute status : Status?
+  attribute role : Role = Role::Issue
+  attribute permissions : Permissions = Permissions::Read | Permissions::Write
+  attribute active : Bool = false
 end
