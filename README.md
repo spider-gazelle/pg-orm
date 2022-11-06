@@ -13,6 +13,8 @@ Extending [ActiveModel](https://github.com/spider-gazelle/active-model) for attr
     - [`has_many`](#has_many)
     - [Dependency](#dependency)
   - [Changefeeds](#changefeeds)
+  - [Advisory Locks](#advisory-locks)
+  - [Column Types](#column-types)
   - [Validations](#validations)
     - [`ensure_unique`](#ensure_unique)
   - [Timestamps](#timestamps)
@@ -34,6 +36,9 @@ PgORM::Database.configure do |settings|
   setting user : String = ENV["PG_USER"]? || "postgres"
   setting password : String = ENV["PG_PASSWORD"]? || ""
   setting query : String = ENV["PG_QUERY"]? || ""
+  # Postgresql Advisory Lock wait time-out
+  setting lock_timeout : Time::Span = (ENV["PG_LOCK_TIMEOUT"]? || 5).to_i.seconds
+
 end
 
 # OR
@@ -237,7 +242,7 @@ Parameter      |                                                               |
 
 Access the changefeed (CRUD Events) of a table through the `changes` class method.<br>
 
-Defaults to watch for events on a table if no id provided.
+Defaults to watch for change events on a table if no id provided.
 
 Parameter |                                     | Default
 --------- | ----------------------------------- | -------
@@ -245,7 +250,7 @@ Parameter |                                     | Default
 
 Returns a `ChangeFeed` instance which provides methods for **event based** or **blocking iterator**<br>
 
-- `ChangeFeed#one` expects a block to be passed, which will get invoked asynchronously when an event is received.
+- `ChangeFeed#on` expects a block to be passed, which will get invoked asynchronously when an event is received.
 - `ChangeFeed#each` an `Iterator`, whose `next` call will block till an event is received.<br>
 
 Emits `Change` instance consisting of `event : Event` and `value : T` where `T` is the model.
@@ -282,6 +287,47 @@ spawn do
 end
 ```
 
+## Advisory Locks
+
+`PgORM::PgAdvisoryLock` class provides a means for creating PostgreSQL [Advisory Locks](https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS).
+
+```crystal
+ lock = PgORM::PgAdvisoryLock.new("name or label to uniquely identify this lock")
+ lock.synchronize do
+   # Do some work
+ end
+
+ # OR if you need control on when to release the lock
+ lock.lock
+ # do some work
+ # some more work
+ lock.unlock
+```
+
+## Column Types
+
+Shard doesn't impose any restrictions on the types used in attributes and you are free to use any of the standard library or custom data types. For complex or custom data types, you are provided with an option to either provide custom `converter` which will be invoked when reading and writing to the table or shard assumes your complex data type supports JSON serialization method and field in stored in Postgres as **JSONB** data type.
+
+Below is a list of several Crystal type that shard maps to Postgres column types
+
+Crystal Type | Postgres column Type
+------------ | ------------------
+String       | TEXT
+Int16        | SMALLINT
+Int32        | INTEGER
+Int64        | BIGINT
+Float64      | NUMERIC
+Bool         | BOOLEAN
+Time         | TIMESTAMP with time zone (TIMESTAMPTZ)
+UUID         | UUID
+JSON::Any    | JSONB
+JSON::Serializable | JSONB
+Array(T)     | [] where T is any other supported type.
+Enum         | INTEGER
+Set(T)       | [] where T is any other supported type
+Custom type  | JSONB
+
+Any of your columns can also define “nilable” types by adding Crystal Nil Union `?`. This is to let shard knows that your database table column allows for a NULL value.
 ## Validations
 
 Builds on [active-model's validation](https://github.com/spider-gazelle/active-model#validations)

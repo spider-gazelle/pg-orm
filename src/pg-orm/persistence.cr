@@ -40,7 +40,7 @@ module PgORM
       #
       def self.clear
         Database.with_connection do |db|
-          db.exec "DELETE FROM #{@@table_name}"
+          db.exec "DELETE FROM #{Database.quote(self.table_name)}"
         end
       end
 
@@ -130,10 +130,12 @@ module PgORM
     # Destroy object, run destroy callbacks and update associations
     #
     def destroy
+      return self if destroyed?
+      return self if new_record?
+
       Database.transaction do
         run_destroy_callbacks do
           __delete
-          # delete_associations
           self
         end
       end
@@ -191,7 +193,6 @@ module PgORM
     # Internal create function, runs callbacks and pushes new model to DB
     #
     private def __create(**options)
-      # raise PgORM::Error::RecordInvalid.new(self) unless valid?
       builder = Query::Builder.new(table_name, primary_key.to_s)
       adapter = Database.adapter(builder)
 
@@ -219,7 +220,9 @@ module PgORM
     # Delete record in table, update model metadata
     #
     private def __delete
-      self.class.delete(id)
+      Database.with_connection do |db|
+        db.exec "DELETE FROM #{Database.quote(self.table_name)} where id = $1", id
+      end
       @destroyed = true
       clear_changes_information
       true

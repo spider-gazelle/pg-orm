@@ -55,8 +55,16 @@ module PgORM
         @{{name.id}} || reload_{{name.id}}
       end
 
+      def {{name.id}}! : {{class_name}}
+        {{name.id}}
+      end
+
+      def {{name.id}}? : {{class_name}}?
+        @{{name.id}} || reload_{{name.id}}?
+      end
+
       def {{name.id}}=(record : {{class_name}}) : {{class_name}}
-        self.{{foreign_key.id}} = record.id unless record.new_record?
+        self.{{foreign_key.id}} = record.id.not_nil! unless record.new_record?
         @{{name.id}} = record
       end
 
@@ -73,14 +81,23 @@ module PgORM
       end
 
       def reload_{{name.id}} : {{class_name}}
-        @{{name.id}} = {{class_name}}.find({{foreign_key}}.not_nil!)
+        @{{name.id}} = {{class_name}}.find({{foreign_key.id}}.not_nil!)
+        @{{name.id}}.not_nil!
+      end
+
+      def reload_{{name.id}}? : {{class_name}}?
+      @{{name.id}} = {{class_name}}.find?({{foreign_key.id}}.not_nil!)
+      end
+
+      def self.by_{{ foreign_key.id }}(id)
+          self.where({{ foreign_key }}: id)
       end
 
       before_save do
         {% unless autosave == false %}
           if (%record = @{{name.id}}) {% if autosave == nil %} && %record.new_record? {% end %}
             %record.save
-            self.{{foreign_key.id}} = %record.id
+            self.{{foreign_key.id}} = %record.id.not_nil!
           end
         {% end %}
       end
@@ -149,6 +166,14 @@ module PgORM
         @{{name.id}} || reload_{{name.id}}
       end
 
+      def {{name.id}}! : {{class_name}}
+        {{name.id}}
+      end
+
+      def {{name.id}}? : {{class_name}}?
+        @{{name.id}} || reload_{{name.id}}?
+      end
+
       def {{name.id}}=(record : {{class_name}}) : {{class_name}}
         unless new_record?
 
@@ -165,7 +190,7 @@ module PgORM
             {{class_name}}.where({{foreign_key.id}}: id).update_all({{foreign_key.id}}: nil)
           end
 
-          record.{{foreign_key.id}} = id
+          record.{{foreign_key.id}} = id.not_nil!
           record.save
         end
         @{{name.id}} = record
@@ -189,6 +214,10 @@ module PgORM
 
       def reload_{{name.id}} : {{class_name}}
         @{{name.id}} = {{class_name}}.find_by({{foreign_key}}: id)
+      end
+
+      def reload_{{name.id}}? : {{class_name}}?
+        @{{name.id}} = {{class_name}}.find_by?({{foreign_key}}: id)
       end
 
       after_save do
@@ -238,7 +267,7 @@ module PgORM
           if %records.cached?
             %records.each do |%record|
               {% if autosave == nil %} next unless %record.new_record? {% end %}
-              %record.{{foreign_key.id}} = id
+              %record.{{foreign_key.id}} = id.not_nil!
               %record.save
             end
           end

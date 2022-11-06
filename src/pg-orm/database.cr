@@ -36,6 +36,12 @@ module PgORM::Database
     PostgreSQL.quote(name, io)
   end
 
+  def self.quote(name : Symbol | String)
+    String.build do |sb|
+      quote(name, sb)
+    end
+  end
+
   def self.info : Info
     @@info ||= Info.new
   end
@@ -87,6 +93,15 @@ module PgORM::Database
         transaction(conn.begin_transaction) { |tx_| yield tx_ }
       end
     end
+  end
+
+  def self.exec_sql(sql : String, *args_)
+    DB.open(Settings.to_uri) do |db|
+      db.exec(sql, *args_)
+    end
+    # with_connection do |db|
+    #   db.exec(sql,*args_)
+    # end
   end
 
   private def self.transaction(tx : DB::Transaction)

@@ -1,5 +1,5 @@
 name: pg-orm
-version: 0.9.0
+version: 1.0.0
 crystal: ">=1.0.0"
 license: MIT
 authors:
@@ -11,8 +11,6 @@ dependencies:
     version: ~> 4.0
   eventbus:
     github: spider-gazelle/eventbus
-  future:
-    github: crystal-community/future.cr
   habitat:
     github: luckyframework/habitat
   pg:

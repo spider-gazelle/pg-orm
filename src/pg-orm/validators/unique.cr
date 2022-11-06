@@ -27,40 +27,49 @@ module PgORM::Validators
           result : {{ proc_return_type }} = transform_proc.call(
           {% for s in scope %}this.{{s.id}}.not_nil!,{% end %}
           )
+          {% if scope.size == 1 %}
+            %results = __convert_to_db_col_value({{scope.first.id}}, result)
+          {% else %}
+              %results = { {% for s, index in scope %}__convert_to_db_col_value({{s.id}},result[{{index}}]),{% end %}}
+          {% end %}
         {% elsif callback %}
           result : {{ proc_return_type }} = this.{{ callback.id }}(
             {% for s in scope %}this.{{s.id}}.not_nil!,{% end %}
           )
+          {% if scope.size == 1 %}
+            %results = __convert_to_db_col_value({{scope.first.id}}, result)
+          {% else %}
+              %results = { {% for s, index in scope %}__convert_to_db_col_value({{s.id}},result[{{index}}]),{% end %}}
+          {% end %}
         {% else %}
-
           {% if scope.size == 1 %}
             # No transform
-            result = {
-              {% for s in scope %}this.{{s.id}},{% end %}
+            %results = {
+              {% for s in scope %}__convert_to_db_col_value({{s.id}},this.{{s.id}}),{% end %}
             }
           {% else %}
-            result = {{scope.first.id}}
+          %results = __convert_to_db_col_value({{scope.first.id}}, {{scope.first.id}})
           {% end %}
         {% end %}
 
-        # Fetch Document
+        # Fetch Record
         {% if scope.size == 1 %}
-            rval = case result
-            when Tuple then result.to_a
-            when String then result.as(String)
+            rval = case %results
+            when Tuple then %results.to_a
+            when String then %results.as(String)
             end
-            doc = self.where({:{{field.id}} => rval}).first?
+            doc = self.where({{field.id}}: rval).first?
         {% else %}
           # Where query with all scoped fields
-          doc = self.where({
-            {% for s, index in scope %} :{{s.id}} => result[{{ index.id }}], {% end %}
-          }).first?
+          doc = self.where(
+            {% for s, index in scope %} {{s.id}}: %results[{{ index.id }}], {% end %}
+          ).first?
         {% end %}
 
-        # Fields are not present in another document under present table
+        # Fields are not present in another record under present table
         success = !(doc && doc.id != this.id)
         {% if transform || callback %}
-          # Set fields in unique scope with result of transform block if document is unique
+          # Set fields in unique scope with result of transform block if record is unique
           if success && !this.persisted?
             {% if scope.size == 1 %}
               this.{{ field.id }} = result
@@ -74,5 +83,23 @@ module PgORM::Validators
 
         success
       end
+    end
+
+  # :nodoc:
+  private macro __convert_to_db_col_value(field, value)
+      {% opts = FIELDS[field.id] %}
+      {% if opts[:klass] < Array && !opts[:converter] %}
+        PQ::Param.encode_array({{value}} || ([] of {{opts[:klass]}}))
+      {% elsif opts[:klass] < Set %}
+        PQ::Param.encode_array(({{value}} || (Set({{opts[:klass]}}).new)).to_a)
+      {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Enum %}
+        {{value}}.try &.value
+      {% elsif (::PgORM::Value).union_types.includes?(opts[:klass].union_types.reject(&.==(Nil)).first) %}
+        {{value}}
+      {% elsif opts[:converter] %}
+        {{opts[:converter]}}.to_json(@{{value}})
+      {% else %}
+        {{value}}.to_json
+      {% end %}
     end
 end

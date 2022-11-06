@@ -12,9 +12,10 @@ module PgORM
       setting user : String = ENV["PG_USER"]? || "postgres"
       setting password : String = ENV["PG_PASSWORD"]? || ""
       setting query : String = ENV["PG_QUERY"]? || ""
+      setting lock_timeout : Time::Span = (ENV["PG_LOCK_TIMEOUT"]? || 5).to_i.seconds
     end
 
-    def self.to_uri
+    def self.to_uri : String
       @@url ||= String.build do |sb|
         sb << "postgres://"
         sb << URI.encode_www_form(settings.user) unless settings.user.blank?
@@ -25,7 +26,6 @@ module PgORM
         sb << settings.db
         sb << "?#{settings.query}" unless settings.query.blank?
       end
-      @@url.not_nil!
     end
 
     def self.parse(uri : String | URI)

@@ -179,8 +179,10 @@ module PgORM
               var_{{key}} =
                 {% if opts[:converter] %}
                   {{opts[:converter]}}.from_rs(rs)
-                {% elsif opts[:klass].stringify.starts_with?("Array") %}
+                {% elsif opts[:klass] < Array %}
                   rs.read({{opts[:klass]}})
+                {% elsif opts[:klass] < Set %}
+                  rs.read(Array({{opts[:klass].type_vars.join(' ').id}})).to_set
                 {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Enum %}
                   {% if opts[:klass].nilable? %}
                      if (v = rs.read(Int32?))
@@ -238,8 +240,10 @@ module PgORM
                 @{{key}} =
                   {% if opts[:converter] %}
                     {{opts[:converter]}}.from_rs(rs)
-                  {% elsif opts[:klass].stringify.starts_with?("Array") %}
+                  {% elsif opts[:klass] < Array %}
                     rs.read({{opts[:klass]}})
+                  {% elsif opts[:klass] < Set %}
+                  rs.read(Array({{opts[:klass].type_vars.join(' ').id}})).to_set
                   {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Enum %}
                     {% if opts[:klass].nilable? %}
                       if (v = rs.read(Int32?))
@@ -291,12 +295,16 @@ module PgORM
       def persistent_attributes
         {
           {% for name, opts in PERSIST %}
-            {% if opts[:klass].stringify.starts_with?("Array") %}
+            {% if opts[:klass] < Array && !opts[:converter] %}
             :{{name}} => PQ::Param.encode_array(@{{name}} || ([] of {{opts[:klass]}})),
+            {% elsif opts[:klass] < Set %}
+            :{{name}} => PQ::Param.encode_array((@{{name}} || (Set({{opts[:klass]}}).new)).to_a),
             {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Enum %}
-            :{{name}} => @{{name}}.try &.value, # || {{opts[:klass]}}.values.first.value,
+            :{{name}} => @{{name}}.try &.value,
             {% elsif (::PgORM::Value).union_types.includes?(opts[:klass].union_types.reject(&.==(Nil)).first) %}
             :{{name}} => @{{name}},
+            {% elsif opts[:converter] %}
+            :{{name}} => {{opts[:converter]}}.to_json(@{{name}}),
             {% else %}
             :{{name}} => @{{name}}.to_json,
             {% end %}

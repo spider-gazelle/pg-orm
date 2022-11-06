@@ -17,8 +17,8 @@ module PgORM
     #   SELECT * FROM "users" WHERE username = $0
     #   SQL
     # ```
-    def find_all_by_sql(sql : String, *args) : Array(self)
-      Database.connection &.query_all(sql, *args) { |rs| new(rs) }
+    def find_all_by_sql(sql : String, *args_, args : Array? = nil) : Array(self)
+      Database.connection &.query_all(sql, *args_, args: args) { |rs| new(rs) }
     end
 
     # Loads one record by raw SQL query. You may refer to arguments with `$x` where `x` is the number  in
@@ -32,14 +32,14 @@ module PgORM
     #
     # Raises a `Error::RecordNotFound` exception when no record could be found in the
     # database.
-    def find_one_by_sql(sql : String, *args) : self
-      Database.connection &.query_one?(sql, *args) { |rs| new(rs) } || raise Error::RecordNotFound.new
+    def find_one_by_sql(sql : String, *args_, args : Array? = nil) : self
+      Database.connection &.query_one?(sql, *args_, args: args) { |rs| new(rs) } || raise Error::RecordNotFound.new
     end
 
     # Same as `#find_one_by_sql` but returns `nil` when no record could be found
     # in the database.
-    def find_one_by_sql?(sql : String, *args) : self?
-      Database.connection &.query_one?(sql, *args) { |rs| new(rs) }
+    def find_one_by_sql?(sql : String, *args_, args : Array? = nil) : self?
+      Database.connection &.query_one?(sql, *args_, args: args) { |rs| new(rs) }
     end
 
     def none : Collection(self)
@@ -59,6 +59,7 @@ module PgORM
     end
 
     def find_all(ids : Array) : Collection(self)
+      return none if ids.empty?
       where({primary_key => ids})
     end
 
