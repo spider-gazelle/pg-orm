@@ -6,6 +6,9 @@ module PgORM
     def self.changefeed(event : Event, change : String)
     end
 
+    def self.on_error(err : Exception | IO::Error)
+    end
+
     enum Event
       Created
       Updated
@@ -20,6 +23,7 @@ module PgORM
       @handler = EventHandler.new
       @event_bus = EventBus.new(url)
       @event_bus.add_handler(@handler)
+      @event_bus.on_error(->error_handler(EventBus::ErrHandlerType))
     end
 
     def start
@@ -41,6 +45,11 @@ module PgORM
     def remove_listener(table : String)
       @listeners.delete(table)
       @event_bus.disable_cdc_for(table)
+    end
+
+    private def error_handler(err : EventBus::ErrHandlerType)
+      stop rescue nil
+      @listeners.values.each(&.on_error(err))
     end
 
     private def process_event(evt)

@@ -346,6 +346,9 @@ module PgORM
         @@change_block.each {|cb| spawn{cb.on_event(event, model)}}
       end
 
+      def self.on_error(err : Exception | IO::Error)
+        @@change_block.each {|cb| cb.on_error(err)}
+      end
 
       class ChangeFeed(T)
 
@@ -411,6 +414,12 @@ module PgORM
               end rescue nil
             end
           end
+        end
+
+        # :nodoc:
+        def on_error(err : Exception | IO::Error)
+            stop rescue nil
+            raise err
         end
       end
     end
