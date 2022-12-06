@@ -316,6 +316,12 @@ describe "callbacks" do
     model.name.should eq "bob"
   end
 
+  it "test update fields on array columns" do
+    model = Tree.create
+    model.update_fields(roots: ["Node1", "Node2"])
+    model.roots.should eq(["Node1", "Node2"])
+  end
+
   it "test save" do
     group = Group.new(name: "A")
     group.description = "D"

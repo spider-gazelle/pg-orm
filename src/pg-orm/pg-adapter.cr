@@ -17,6 +17,12 @@ module PgORM
       self.class.quote(name, io)
     end
 
+    def quote(name : Symbol | String)
+      String.build do |sb|
+        quote(name, sb)
+      end
+    end
+
     def insert(attributes : Hash | NamedTuple)
       sql, args = insert_sql(attributes)
       Database.connection &.query_one(sql, args: args) do |rs|
@@ -201,10 +207,19 @@ module PgORM
       quote(builder.table_name, io)
       io << " SET "
       attributes.each_with_index do |column_name, value, index|
-        args << value
+        if value.is_a?(Array)
+          args << "{#{value.as(Array).join}}"
+        else
+          args << value
+        end
         io << ", " unless index == 0
-        quote(column_name, io)
-        io << " = $" << args.size
+        col = quote(column_name)
+        io << col
+        if value.is_a?(Array)
+          io << " = #{col} || $" << args.size
+        else
+          io << " = $" << args.size
+        end
       end
     end
 
