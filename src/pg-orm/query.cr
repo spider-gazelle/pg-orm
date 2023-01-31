@@ -144,7 +144,9 @@ module PgORM
     end
 
     def where(conditions : Hash(Symbol, Value | Array(Value)) | NamedTuple) : Collection(self)
-      query.where(conditions)
+      {% begin %}
+      query.where(conditions).as(Collection({{@type}}))
+      {% end %}
     end
 
     def where(**conditions) : Collection(self)

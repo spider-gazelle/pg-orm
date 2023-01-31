@@ -15,7 +15,7 @@ module PgORM::Database
   @@transactions = {} of LibC::ULong => DB::Transaction
   @@info : Info?
 
-  def self.configure : Nil
+  def self.configure(&) : Nil
     Settings.configure do |settings|
       yield settings
     end
@@ -61,7 +61,7 @@ module PgORM::Database
     end
   end
 
-  def self.with_connection
+  def self.with_connection(&)
     if db = @@connections[object_id]?
       yield db
     else
@@ -73,7 +73,7 @@ module PgORM::Database
     end
   end
 
-  def self.connection
+  def self.connection(&)
     if db = @@connections[object_id]?
       yield db
     else
@@ -85,7 +85,7 @@ module PgORM::Database
     @@transactions[object_id] ||= checkout.begin_transaction
   end
 
-  def self.transaction
+  def self.transaction(&)
     if tx = @@transactions[Fiber.current.object_id]?
       transaction(tx.begin_transaction) { |tx_| yield tx_ }
     else
@@ -104,7 +104,7 @@ module PgORM::Database
     # end
   end
 
-  private def self.transaction(tx : DB::Transaction)
+  private def self.transaction(tx : DB::Transaction, &)
     id = Fiber.current.object_id
     @@transactions[id] = tx
 

@@ -28,7 +28,7 @@ module PgORM
       @timeout = timeout if timeout
     end
 
-    def synchronize(**options)
+    def synchronize(**options, &)
       lock(**options)
       begin
         yield

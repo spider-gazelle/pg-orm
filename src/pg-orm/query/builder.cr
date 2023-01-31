@@ -8,7 +8,7 @@ module PgORM
     struct Condition
       getter column_name : Symbol
       getter value : Value | Regex | Array(Value)
-      property not : Bool
+      property? not : Bool
 
       def initialize(@column_name, @value, @not = false)
       end
@@ -17,7 +17,7 @@ module PgORM
     struct RawCondition
       getter raw : String
       getter values : Array(Value)?
-      property not : Bool
+      property? not : Bool
 
       def initialize(@raw, @values, @not = false)
       end
@@ -117,7 +117,7 @@ module PgORM
       _not { where!(*args, **opts) }
     end
 
-    protected def _not
+    protected def _not(&)
       @not = true
       yield
     ensure

@@ -23,20 +23,20 @@ module PgORM
       end
     end
 
-    def insert(attributes : Hash | NamedTuple)
+    def insert(attributes : Hash | NamedTuple, &)
       sql, args = insert_sql(attributes)
       Database.connection &.query_one(sql, args: args) do |rs|
         yield rs.read
       end
     end
 
-    def select_one
+    def select_one(&)
       return if @builder.none?
       sql, args = select_sql
       Database.connection &.query_one?(sql, args: args) { |rs| yield rs }
     end
 
-    def select_all(&block : DB::ResultSet -> U) : Array(U) forall U
+    def select_all(& : DB::ResultSet -> U) : Array(U) forall U
       if @builder.none?
         Array(U).new(0)
       else
@@ -45,7 +45,7 @@ module PgORM
       end
     end
 
-    def select_each : Nil
+    def select_each(&) : Nil
       return if @builder.none?
       sql, args = select_sql
       Database.connection &.query_each(sql, args: args) { |rs| yield rs }
@@ -142,7 +142,7 @@ module PgORM
 
         attributes.each_with_index do |(column_name, _), index|
           io << ", " unless index == 0
-          quote(column_name, io)
+          quote(column_name, io) unless column_name.nil?
         end
 
         io << ") VALUES ("
@@ -241,7 +241,7 @@ module PgORM
 
           case value = condition.value
           when Array(Value)
-            if condition.not
+            if condition.not?
               io << " NOT IN ("
             else
               io << " IN ("
@@ -253,7 +253,7 @@ module PgORM
             io << ')'
             args.concat(value)
           when nil
-            if condition.not
+            if condition.not?
               io << " IS NOT NULL"
             else
               io << " IS NULL"
@@ -261,20 +261,20 @@ module PgORM
           when Regex
             args << value.source
             io << ' '
-            io << '!' if condition.not
+            io << '!' if condition.not?
             io << '~'
             io << '*' if value.options.ignore_case?
             io << " $" << args.size
           else
             args << value
-            if condition.not
+            if condition.not?
               io << " <> $" << args.size
             else
               io << " = $" << args.size
             end
           end
         when Query::Builder::RawCondition
-          io << "NOT " if condition.not
+          io << "NOT " if condition.not?
           io << '('
 
           if values = condition.values
@@ -292,10 +292,10 @@ module PgORM
 
     def build_where_regex(condition, io, args)
       args << condition.value.as(Regex).source
-      io << "NOT (" if condition.not
+      io << "NOT (" if condition.not?
       quote(condition.column_name, io)
       io << " REGEXP ?"
-      io << ')' if condition.not
+      io << ')' if condition.not?
     end
 
     protected def build_order_by(io) : Nil

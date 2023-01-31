@@ -10,7 +10,7 @@ module PgORM
       end
 
       # Iterates all records loaded from the database.
-      def each(&block : T ->) : Nil
+      def each(& : T ->) : Nil
         to_a.each { |row| yield row }
       end
 
