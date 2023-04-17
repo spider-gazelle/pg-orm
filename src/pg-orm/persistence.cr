@@ -44,6 +44,14 @@ module PgORM
         end
       end
 
+      # Truncate quickly removes all from table.
+      def self.truncate(cascade = true)
+        casc = cascade ? "CASCADE" : ""
+        Database.with_connection do |db|
+          db.exec "TRUNCATE #{Database.quote(self.table_name)}#{casc}"
+        end
+      end
+
       # Updates one or many records identified by *id* in the database.
       #
       # ```

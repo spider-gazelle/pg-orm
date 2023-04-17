@@ -2,9 +2,7 @@ version: "3.7"
 
 services:
   postgres:
-    hostname: postgres
     image: postgres:13-alpine
-    container_name: postgres
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 30s
@@ -14,8 +12,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: pgorm_spec
-    ports:
-      - "5432:5432"
 
   pgorm:
     build:

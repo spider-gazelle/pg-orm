@@ -149,6 +149,15 @@ module PgORM
       builder.where!(raw, *args)
     end
 
+    def where(raw : String) : self
+      builder = dup
+      builder.conditions = @conditions.dup
+      actual = @conditions ||= Conditions.new
+      actual << RawCondition.new(raw, nil, @not)
+      @not = false
+      self
+    end
+
     def where!(raw : String, *args) : self
       actual = @conditions ||= Conditions.new
       if args.empty?

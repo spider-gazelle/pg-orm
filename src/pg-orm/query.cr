@@ -143,6 +143,10 @@ module PgORM
       query.distinct(value)
     end
 
+    def where(sql : String) : Collection(self)
+      query.where(raw: sql)
+    end
+
     def where(conditions : Hash(Symbol, Value | Array(Value)) | NamedTuple) : Collection(self)
       {% begin %}
       query.where(conditions).as(Collection({{@type}}))
