@@ -9,6 +9,7 @@ describe PgORM::ChangeFeedHandler do
       changefeed.on do |change|
         change.updated?.should be_true
         change.value.id.should eq(base.id)
+        change.value.name_changed?.should be_true
         change.value.name.should eq("cdc-test-changed")
         chan.send(nil)
       end

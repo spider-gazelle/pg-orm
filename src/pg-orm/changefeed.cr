@@ -3,7 +3,7 @@ require "eventbus"
 module PgORM
   # :nodoc:
   module ChangeReceiver
-    def self.changefeed(event : Event, change : String)
+    def self.changefeed(event : Event, change : String, update : String? = nil)
     end
 
     def self.on_error(err : Exception | IO::Error)
@@ -62,7 +62,7 @@ module PgORM
                      in .delete?
                        ChangeReceiver::Event::Deleted
                      end
-        entry.changefeed(event_type, evt.data)
+        entry.changefeed(event_type, evt.data, evt.changes)
       end
     end
 
