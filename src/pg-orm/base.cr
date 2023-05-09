@@ -350,16 +350,29 @@ module PgORM
       # :nodoc:
       def self.changefeed (event : PgORM::ChangeReceiver::Event, change : String, update : String? = nil)
         model = from_trusted_json(change)
+
         if col_update = update
+          model_old_raw = JSON.parse(change).as_h
           col_changes = JSON.parse(col_update).as_a.map(&.as_h)
           cols = col_changes.map(&.["field"])
+
+          # build the old model from the changes
           {% for key, opts in PERSIST %}
             if cols.includes?({{key.stringify}})
               delta = col_changes[cols.index!({{key.stringify}})]
-              model.{{key}} = {{opts[:klass]}}.from_json(delta["old"].to_json)
-              model.{{key}} = {{opts[:klass]}}.from_json(delta["new"].to_json)
+              model_old_raw[{{key.stringify}}] = delta["old"]
             end
           {% end %}
+          model_old = from_trusted_json(model_old_raw.to_json)
+
+          # apply the changes to the model
+          {% for key, opts in PERSIST %}
+            if cols.includes?({{key.stringify}})
+              model_old.{{key}} = model.{{key}}
+            end
+          {% end %}
+
+          model = model_old
         end
         model.destroyed = true if event.deleted?
         @@change_block.each {|cb| spawn{cb.on_event(event, model)}}
