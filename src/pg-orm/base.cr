@@ -374,6 +374,7 @@ module PgORM
 
           model = model_old
         end
+        model.new_record = false
         model.destroyed = true if event.deleted?
         @@change_block.each {|cb| spawn{cb.on_event(event, model)}}
       end
