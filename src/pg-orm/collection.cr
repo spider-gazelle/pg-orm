@@ -87,10 +87,9 @@ module PgORM
         new_builder = builder.limit(size).offset(offset)
         Database.adapter(new_builder).select_each { |rs| slice << T.new(rs) }
         offset += size
-        count = slice.size
+        break if slice.size == 0
         (size - slice.size).times { slice << filled_up_with }
         yield slice
-        break if count == 0
       end
     end
   end
