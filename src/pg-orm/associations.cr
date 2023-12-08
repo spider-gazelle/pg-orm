@@ -318,9 +318,8 @@ module PgORM
     macro included
       macro inherited
         macro finished
-          def to_json(json : ::JSON::Builder)
+          def invoke_props
             __process_assoc_serialization__
-            super
           end
         end
       end

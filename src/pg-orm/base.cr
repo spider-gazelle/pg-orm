@@ -485,5 +485,10 @@ module PgORM
         {% end %}
       {% end %}
     end
+
+    def to_json(json : JSON::Builder)
+      invoke_props
+      super
+    end
   end
 end
