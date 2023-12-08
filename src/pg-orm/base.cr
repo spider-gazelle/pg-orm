@@ -49,7 +49,7 @@ module PgORM
     protected def extra_attributes=(@extra_attributes : Hash(String, Value))
     end
 
-    protected def extra_attributes : Hash(String, PgORM::Value)
+    def extra_attributes : Hash(String, PgORM::Value)
       @extra_attributes ||= {} of String => PgORM::Value
     end
 
@@ -207,7 +207,15 @@ module PgORM
             {% end %}
             else
               %extra_attributes ||= {} of String => PgORM::Value
-              %extra_attributes[%column_name] = rs.read(PgORM::Value)
+              %extra_attributes[%column_name] = begin
+              ext_val = rs.read
+              case ext_val
+              when JSON::PullParser then JSON::Any.new(ext_val).to_json
+              else
+                  ext_val.as(PgORM::Value)
+              end
+            end
+              #%extra_attributes[%column_name] = rs.read(PgORM::Value)
           end
         end
 

@@ -482,6 +482,14 @@ module PgORM
         self
       end
 
+      def join(model : Base.class, fk : Symbol) : self
+        dup builder.join(model, fk)
+      end
+
+      def group_by(*columns : Symbol | String) : self
+        dup builder.group_by(*columns)
+      end
+
       # Specify an ORDER for the query. This is added to any previous order
       # definition. For example:
       # ```

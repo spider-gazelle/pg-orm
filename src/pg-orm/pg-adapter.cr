@@ -85,8 +85,10 @@ module PgORM
       args = [] of Value
       sql = String.build do |str|
         build_select(str)
+        build_join(str)
         build_where(str, args)
         build_order_by(str)
+        build_groups(str)
         build_limit(str)
       end
       {sql, args}
@@ -108,6 +110,32 @@ module PgORM
         build_where(str, args)
       end
       {sql, args}
+    end
+
+    protected def build_join(io) : Nil
+      if joins = builder.joins?
+        joins.each do |jtable, key, fkey|
+          io << " JOIN "
+          quote(jtable, io)
+          io << " ON " << "#{jtable}.#{fkey} = " << "#{builder.table_name}.#{key}"
+          io << " "
+        end
+      end
+    end
+
+    protected def build_groups(io) : Nil
+      if groups = builder.groups?
+        io << " GROUP BY "
+        groups.each_with_index do |column_name, index|
+          io << ", " unless index == 0
+          case column_name
+          when Symbol
+            quote(column_name, io)
+          when String
+            io << column_name
+          end
+        end
+      end
     end
 
     protected def build_select(io) : Nil
@@ -230,14 +258,18 @@ module PgORM
 
     protected def build_where(io, args) : Nil
       return unless conditions = builder.conditions?
-
+      has_join = !builder.joins?.nil?
       io << " WHERE "
       conditions.each_with_index do |condition, index|
         io << " AND " unless index == 0
 
         case condition
         when Query::Builder::Condition
-          quote(condition.column_name, io)
+          if has_join
+            io << builder.table_name << "." << condition.column_name
+          else
+            quote(condition.column_name, io)
+          end
 
           case value = condition.value
           when Array(Value)
