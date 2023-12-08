@@ -26,12 +26,16 @@ module PgORM
     alias Selects = Array(Symbol | String)
     alias Conditions = Array(Condition | RawCondition)
     alias Orders = Array({Symbol, Symbol} | String)
+    alias Joins = Array({String, String, String})
+    alias Groups = Array(Symbol | String)
 
     property table_name : String
     property primary_key : String
     property selects : Selects?
     property conditions : Conditions?
     property orders : Orders?
+    property joins : Joins?
+    property groups : Groups?
     property limit : Int32 = -1
     property offset : Int32 = -1
 
@@ -57,6 +61,18 @@ module PgORM
       return unless orders = @orders
       return if orders.empty?
       orders
+    end
+
+    def joins? : Joins?
+      return unless joins = @joins
+      return if joins.empty?
+      joins
+    end
+
+    def groups? : Groups?
+      return unless groups = @groups
+      return if groups.empty?
+      groups
     end
 
     def limit? : Int32?
@@ -193,6 +209,39 @@ module PgORM
     end
 
     def offset!(@offset : Int32) : self
+      self
+    end
+
+    def join(model : Base.class, fk : Symbol) : self
+      builder = begin
+        join_sel = "json_agg(row_to_json(#{model.table_name})) AS #{model.table_name}_join_result"
+        if self.selects?
+          self.select(join_sel)
+        else
+          self.select("#{table_name}.*", join_sel)
+        end
+      end
+      builder.group_by!("#{table_name}.#{primary_key}") unless self.groups?
+
+      builder.joins = @joins.dup
+      builder.join!({model.table_name, model.primary_key.to_s, fk.to_s})
+    end
+
+    def join!(rel : Tuple(String, String, String)) : self
+      actual = @joins ||= Joins.new
+      actual << rel
+      self
+    end
+
+    def group_by(*columns : Symbol | String) : self
+      builder = dup
+      builder.groups = @groups.dup
+      builder.group_by!(*columns)
+    end
+
+    def group_by!(*columns : Symbol | String) : self
+      actual = @groups ||= Groups.new
+      columns.each { |value| actual << value }
       self
     end
 

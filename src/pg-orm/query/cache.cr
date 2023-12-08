@@ -6,7 +6,13 @@ module PgORM
       @cache : Array(T)?
 
       def to_a : Array(T)
-        @cache ||= Database.adapter(builder).select_all { |rs| T.new(rs) }
+        @cache ||= begin
+          if (val = parent) && (json = val.extra_attributes["#{T.table_name}_join_result"]?)
+            Array(T).from_json(json.to_s)
+          else
+            Database.adapter(builder).select_all { |rs| T.new(rs) }
+          end
+        end
       end
 
       # Iterates all records loaded from the database.
@@ -31,6 +37,11 @@ module PgORM
 
       def cached?
         !@cache.nil?
+      end
+
+      # :nodoc:
+      def parent
+        nil
       end
     end
   end

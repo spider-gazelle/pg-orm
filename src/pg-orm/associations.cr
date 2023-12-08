@@ -2,6 +2,10 @@ require "./relation"
 
 module PgORM
   module Associations
+    # :nodoc:
+    annotation SerializeMarker
+    end
+
     # Declares a belongs to relationship.
     #
     # This will add the following methods:
@@ -245,7 +249,7 @@ module PgORM
     end
 
     # Declares a has many relationship.
-    macro has_many(name, class_name = nil, foreign_key = nil, autosave = nil, dependent = nil)
+    macro has_many(name, class_name = nil, foreign_key = nil, autosave = nil, dependent = nil, serialize = false)
       {% unless class_name
            class_name = name.id.stringify.gsub(/s$/, "").camelcase.id
          end %}
@@ -253,9 +257,17 @@ module PgORM
            foreign_key = (@type.id.stringify.split("::").last.gsub(/s$/, "") + "_id").underscore.id
          end %}
 
+      {% relation_var = ("__" + name.id.stringify + "_rel").id %}
+
       @[JSON::Field(ignore: true)]
       @[YAML::Field(ignore: true)]
       @{{name.id}} : ::PgORM::Relation({{class_name}})?
+
+      {% if serialize %}
+        @[PgORM::Associations::SerializeMarker(key: {{relation_var.id}})]
+        @[JSON::Field(key: {{name.id}}, ignore_deserialize: true)]
+        getter({{relation_var.id}} : Array({{class_name}})){ {{name.id}}.to_a || Array({{class_name}}).new }
+      {% end %}
 
       def {{name.id}} : ::PgORM::Relation({{class_name}})
         @{{name.id}} ||= ::PgORM::Relation({{class_name}}).new(self, {{foreign_key.id.symbolize}})
@@ -287,6 +299,30 @@ module PgORM
           .where({{foreign_key}}: id)
           .update_all({{foreign_key}}: nil)
         {% end %}
+      end
+    end
+
+    macro __process_assoc_serialization__
+      {% props = [] of Nil %}
+      {% for ivar in @type.instance_vars %}
+        {% ann = ivar.annotation(PgORM::Associations::SerializeMarker) %}
+        {% if ann && ann[:key] %}
+          {% props << ann[:key] %}
+        {% end %}
+      {% end %}
+      {% for ivar in props %}
+       {{ivar}}
+      {% end %}
+    end
+
+    macro included
+      macro inherited
+        macro finished
+          def to_json(json : ::JSON::Builder)
+            __process_assoc_serialization__
+            super
+          end
+        end
       end
     end
   end
