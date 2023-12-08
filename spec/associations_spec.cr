@@ -333,32 +333,6 @@ describe PgORM::Associations do
       "My Book".should eq(book1.reload!.name)
     end
 
-    it "test join" do
-      author = AuthorAutosave.new(name: "Author")
-      author.save
-      author.persisted?.should be_true
-
-      book1 = author.books.create(name: "Book1")
-      book1.name = "My Book"
-
-      book2 = author.books.build(name: "Book2")
-      book2.name = "My another book"
-      author.save
-
-      result = AuthorAutosave.where(id: author.id).join(BookAutosave, :author_id).to_a.first
-      books = JSON.parse(result.to_json).as_h["books"]?
-      books.should_not be_nil
-      books.try &.size.should eq(2)
-      book3 = author.books.build(name: "Book3")
-      book3.name = "My 3rd book"
-      author.save
-
-      result = AuthorAutosave.where(id: author.id).join(BookAutosave, :author_id).to_a.first
-      books = JSON.parse(result.to_json).as_h["books"]?
-      books.should_not be_nil
-      books.try &.size.should eq(3)
-    end
-
     it "test autosave: true" do
       author = AuthorAutosave.new(name: "Author")
       author.save

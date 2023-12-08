@@ -18,7 +18,6 @@ Extending [ActiveModel](https://github.com/spider-gazelle/active-model) for attr
   - [Validations](#validations)
     - [`ensure_unique`](#ensure_unique)
   - [Timestamps](#timestamps)
-  - [Join](#join)
   - [Installation](#installation)
   - [Usage](#usage)
   - [Testing](#testing)
@@ -175,13 +174,13 @@ child.pets.to_a.empty? # => true
   * `Child#reload_parent` (force reload child.parent)
 
 
-| Parameter      |                                                                                                                                                                                                                                                                             | Default          |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| `name`         | Name of the association                                                                                                                                                                                                                                                     |
-| `class_name  ` | overrides the association class name (inferred from `name` by default)                                                                                                                                                                                                      | `name.camelcase` |
-| `foreign_key`  | overrides the foreign key on the association (inferred as `name + "_id"`                                                                                                                                                                                                    | `name + "_id"`   |
-| `autosave`     | Set auto save behavior. One of `nil`, `true`, `false` . Set `nil` (default) to only save newly built associations when the parent record is saved, `true` to always save the associations (new or already persisted), `false` to never save the associations automatically. | `nil`            |
-| `dependent`    | Sets destroy behaviour. One of `nil`, `:delete`, `:destroy`. Set `nil` when no deletion should occur. `:delete` to delete associated record in SQL, `:destroy` to call `#destroy` on the associated object.                                                                 | `nil`            |
+Parameter      |                                                               | Default
+-------------- | ------------------------------------------------------------- | -------
+`name`         | Name of the association                                       |
+`class_name  ` | overrides the association class name (inferred from `name` by default)| `name.camelcase`
+`foreign_key`  | overrides the foreign key on the association (inferred as `name + "_id"` | `name + "_id"`
+`autosave`     | Set auto save behavior. One of `nil`, `true`, `false` . Set `nil` (default) to only save newly built associations when the parent record is saved, `true` to always save the associations (new or already persisted), `false` to never save the associations automatically.       | `nil` 
+`dependent`    | Sets destroy behaviour. One of `nil`, `:delete`, `:destroy`. Set `nil` when no deletion should occur. `:delete` to delete associated record in SQL, `:destroy` to call `#destroy` on the associated object. | `nil`
 
 
 ### `has_one`
@@ -204,13 +203,13 @@ child.pets.to_a.empty? # => true
   - `Account#create_supplier!`
   - `Account#reload_supplier`
 
-| Parameter      |                                                                                                                                                                                                                                                                             | Default          |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| `name`         | Name of the association                                                                                                                                                                                                                                                     |
-| `class_name  ` | overrides the association class name (inferred from `name` by default)                                                                                                                                                                                                      | `name.camelcase` |
-| `foreign_key`  | overrides the foreign key on the association (inferred as `name + "_id"`                                                                                                                                                                                                    | `name + "_id"`   |
-| `autosave`     | Set auto save behavior. One of `nil`, `true`, `false` . Set `nil` (default) to only save newly built associations when the parent record is saved, `true` to always save the associations (new or already persisted), `false` to never save the associations automatically. | `nil`            |
-| `dependent`    | Sets destroy behaviour. One of `:nullify`, `:delete`, `:destroy`. Set `:nullify` to set the foreign key `nil` in SQL, `:delete` to delete associated record in SQL, `:destroy` to call `#destroy` on the associated object.                                                 | `:nullify`       |
+Parameter      |                                                               | Default
+-------------- | ------------------------------------------------------------- | -------
+`name`         | Name of the association                                       |
+`class_name  ` | overrides the association class name (inferred from `name` by default)| `name.camelcase`
+`foreign_key`  | overrides the foreign key on the association (inferred as `name + "_id"` | `name + "_id"`
+`autosave`     | Set auto save behavior. One of `nil`, `true`, `false` . Set `nil` (default) to only save newly built associations when the parent record is saved, `true` to always save the associations (new or already persisted), `false` to never save the associations automatically.       | `nil` 
+`dependent`    | Sets destroy behaviour. One of `:nullify`, `:delete`, `:destroy`. Set `:nullify` to set the foreign key `nil` in SQL, `:delete` to delete associated record in SQL, `:destroy` to call `#destroy` on the associated object. | `:nullify`
 
 
 ### `has_many`
@@ -225,14 +224,14 @@ For example a Parent class declares `has_many :children, class_name: Child` whic
 - `Parent#children : Relation(Child)` (similar to `child.find(parent_id)`)
 
 
-| Parameter      |                                                                                                                                                                                                                                                                             | Default            |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| `name`         | Name of the association                                                                                                                                                                                                                                                     |
-| `class_name  ` | overrides the association class name (inferred from `name` by default)                                                                                                                                                                                                      | `name.camelcase`   |
-| `foreign_key`  | overrides the foreign key on the association (inferred as `name + "_id"`                                                                                                                                                                                                    | `name + "_id"`     |
-| `autosave`     | Set auto save behavior. One of `nil`, `true`, `false` . Set `nil` (default) to only save newly built associations when the parent record is saved, `true` to always save the associations (new or already persisted), `false` to never save the associations automatically. | `nil`              |
-| `dependent`    | Sets destroy behaviour. One of `:nullify`, `:delete`, `:destroy`. Set `:nullify` to set the foreign key `nil` in SQL, `:delete` to delete associated record in SQL, `:destroy` to call `#destroy` on the associated object.                                                 | `:nullify`         |
-| `serialize`    | When `true` will add linked attribute to `to_json` representation                                                                                                                                                                                                           | `false` by default |
+Parameter      |                                                               | Default
+-------------- | ------------------------------------------------------------- | -------
+`name`         | Name of the association                                       |
+`class_name  ` | overrides the association class name (inferred from `name` by default)| `name.camelcase`
+`foreign_key`  | overrides the foreign key on the association (inferred as `name + "_id"` | `name + "_id"`
+`autosave`     | Set auto save behavior. One of `nil`, `true`, `false` . Set `nil` (default) to only save newly built associations when the parent record is saved, `true` to always save the associations (new or already persisted), `false` to never save the associations automatically.       | `nil` 
+`dependent`    | Sets destroy behaviour. One of `:nullify`, `:delete`, `:destroy`. Set `:nullify` to set the foreign key `nil` in SQL, `:delete` to delete associated record in SQL, `:destroy` to call `#destroy` on the associated object. | `:nullify`
+
 
 ### Dependency
 
@@ -245,9 +244,9 @@ Access the changefeed (CRUD Events) of a table through the `changes` class metho
 
 Defaults to watch for change events on a table if no id provided.
 
-| Parameter |                                                                     | Default |
-| --------- | ------------------------------------------------------------------- | ------- |
-| `id`      | id of record to watch for changes or `nil` to watch for whole table | nil     |
+Parameter |                                     | Default
+--------- | ----------------------------------- | -------
+`id`      | id of record to watch for changes or `nil` to watch for whole table| nil
 
 Returns a `ChangeFeed` instance which provides methods for **event based** or **blocking iterator**<br>
 
@@ -311,22 +310,22 @@ Shard doesn't impose any restrictions on the types used in attributes and you ar
 
 Below is a list of several Crystal type that shard maps to Postgres column types
 
-| Crystal Type       | Postgres column Type                    |
-| ------------------ | --------------------------------------- |
-| String             | TEXT                                    |
-| Int16              | SMALLINT                                |
-| Int32              | INTEGER                                 |
-| Int64              | BIGINT                                  |
-| Float64            | NUMERIC                                 |
-| Bool               | BOOLEAN                                 |
-| Time               | TIMESTAMP with time zone (TIMESTAMPTZ)  |
-| UUID               | UUID                                    |
-| JSON::Any          | JSONB                                   |
-| JSON::Serializable | JSONB                                   |
-| Array(T)           | [] where T is any other supported type. |
-| Enum               | INTEGER                                 |
-| Set(T)             | [] where T is any other supported type  |
-| Custom type        | JSONB                                   |
+Crystal Type | Postgres column Type
+------------ | ------------------
+String       | TEXT
+Int16        | SMALLINT
+Int32        | INTEGER
+Int64        | BIGINT
+Float64      | NUMERIC
+Bool         | BOOLEAN
+Time         | TIMESTAMP with time zone (TIMESTAMPTZ)
+UUID         | UUID
+JSON::Any    | JSONB
+JSON::Serializable | JSONB
+Array(T)     | [] where T is any other supported type.
+Enum         | INTEGER
+Set(T)       | [] where T is any other supported type
+Custom type  | JSONB
 
 Any of your columns can also define “nilable” types by adding Crystal Nil Union `?`. This is to let shard knows that your database table column allows for a NULL value.
 ## Validations
@@ -339,13 +338,13 @@ Fails to validate if field with duplicate value present in db.
 If scope is set, the callback/block signature must be a tuple with types matching that of the scope.
 The field(s) are set with the result of the transform block upon successful validation
 
-| Parameter           |                                                         | Default |
-| ------------------- | ------------------------------------------------------- | ------- |
-| `field`             | Model attribute on which to guarantee uniqueness        |
-| `scope`             | Attributes passed to the transform, defaults to :field  | nil     |
-| `create_index`      | Whether or not to generate a secondary index            | true    |
-| `callback : T -> T` | Optional function to transform field value              | nil     |
-| `block : T -> T`    | Optional block to transform field value before querying | nil     |
+Parameter               |                                                         | Default
+----------------------- | ------------------------------------------------------- | -------
+`field`                 | Model attribute on which to guarantee uniqueness        |
+`scope`                 | Attributes passed to the transform, defaults to :field  | nil
+`create_index`          | Whether or not to generate a secondary index            | true
+`callback : T -> T`     | Optional function to transform field value              | nil
+`block : T -> T`        | Optional block to transform field value before querying | nil
 
 
 ## Timestamps
@@ -363,44 +362,6 @@ class Timo < PgORM::Base
 
   attribute name : String
 end
-```
-
-## Join
-
-Supports **INNER JOIN**. When a join SQL is performed, model associated records will be cached and accessing linked relations will use the cached result instead of hitting the database.
-
-> Default behavior of associations is to perform a lazy load. So linked associations aren't fetched unless accessed.
-
-```crystal
-
-class Parent < PgORM::Base
-  attribute name : String
-  has_many :children, class_name: Child, serialize: true # serialize tag will serialize `children` when `to_json` is invoked on parent object
-end
-
-class Child < PgORM::Base
-  attribute age : Int32
-  belongs_to :parent
-  has_many :pet
-end
-
-class Pet < PgORM::Base
-  attribute name : String
-  belongs_to :child
-end
-
-parent = Parent.new(name: "Phil")
-parent.save!
-
-child1 = parent.children.create(age: 6)
-child2 = parent.children.create(age: 3)
-
-parent.save!
-
-result = Parent.where(id: parent.id).join(Child, :parent_id).to_a.first
-children = JSON.parse(result.to_json).as_h["children"]?
-children.should_not be_nil
-children.try &.size.should eq(2)
 ```
 
 ## Installation

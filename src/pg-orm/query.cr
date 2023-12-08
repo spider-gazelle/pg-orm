@@ -177,14 +177,6 @@ module PgORM
       query.offset(value)
     end
 
-    def join(model : Base.class, fk : Symbol) : Collection(self)
-      query.join(model, fk)
-    end
-
-    def group_by(*columns : Symbol | String) : Collection(self)
-      query.join(*columns)
-    end
-
     def order(columns : Hash(Symbol, Symbol)) : Collection(self)
       query.order(columns)
     end

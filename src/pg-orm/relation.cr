@@ -49,11 +49,6 @@ module PgORM
         end
     end
 
-    # :nodoc:
-    def parent
-      @parent
-    end
-
     delegate to_json, to_pretty_json, from_json, to: @parent
     delegate to_yaml, from_yaml, to: @parent
   end
