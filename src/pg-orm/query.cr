@@ -177,8 +177,8 @@ module PgORM
       query.offset(value)
     end
 
-    def join(model : Base.class, fk : Symbol) : Collection(self)
-      query.join(model, fk)
+    def join(model : Base.class, fk : Symbol, pk : Base.class | Nil = nil) : Collection(self)
+      query.join(model, fk, pk)
     end
 
     def group_by(*columns : Symbol | String) : Collection(self)
