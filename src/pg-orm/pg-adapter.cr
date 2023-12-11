@@ -117,7 +117,7 @@ module PgORM
         joins.each do |jtable, key, fkey|
           io << " JOIN "
           quote(jtable, io)
-          io << " ON " << "#{jtable}.#{fkey} = " << "#{builder.table_name}.#{key}"
+          io << " ON " << "#{jtable}.#{fkey} = " << key
           io << " "
         end
       end

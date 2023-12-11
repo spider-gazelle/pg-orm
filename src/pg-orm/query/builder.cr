@@ -212,7 +212,7 @@ module PgORM
       self
     end
 
-    def join(model : Base.class, fk : Symbol) : self
+    def join(model : Base.class, fk : Symbol, pk : Base.class | Nil = nil) : self
       builder = begin
         join_sel = "json_agg(row_to_json(#{model.table_name})) AS #{model.table_name}_join_result"
         if self.selects?
@@ -224,7 +224,8 @@ module PgORM
       builder.group_by!("#{table_name}.#{primary_key}") unless self.groups?
 
       builder.joins = @joins.dup
-      builder.join!({model.table_name, model.primary_key.to_s, fk.to_s})
+      primary_key = pk.nil? ? "#{builder.table_name}.#{builder.primary_key}" : "#{pk.as(Base.class).table_name}.#{pk.as(Base.class).primary_key}"
+      builder.join!({model.table_name, primary_key, fk.to_s})
     end
 
     def join!(rel : Tuple(String, String, String)) : self
