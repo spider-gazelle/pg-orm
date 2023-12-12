@@ -367,7 +367,14 @@ end
 
 ## Join
 
-Supports **INNER JOIN**. When a join SQL is performed, model associated records will be cached and accessing linked relations will use the cached result instead of hitting the database.
+Supports:
+
+* **INNER JOIN**: Returns records that have matching values in both tables
+* **LEFT JOIN**: Returns all records from the left table, and the matched records from the right table
+* **RIGHT JOIN**: Returns all records from the right table, and the matched records from the left table
+* **FULL JOIN**: Returns all records when there is a match in either left or right table
+
+When a join SQL is performed, model associated records will be cached and accessing linked relations will use the cached result instead of hitting the database.
 
 > Default behavior of associations is to perform a lazy load. So linked associations aren't fetched unless accessed.
 
@@ -397,7 +404,7 @@ child2 = parent.children.create(age: 3)
 
 parent.save!
 
-result = Parent.where(id: parent.id).join(Child, :parent_id).to_a.first
+result = Parent.where(id: parent.id).join(:left, Child, :parent_id).to_a.first
 children = JSON.parse(result.to_json).as_h["children"]?
 children.should_not be_nil
 children.try &.size.should eq(2)

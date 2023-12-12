@@ -345,7 +345,7 @@ describe PgORM::Associations do
       book2.name = "My another book"
       author.save
 
-      result = AuthorAutosave.where(id: author.id).join(BookAutosave, :author_id).to_a.first
+      result = AuthorAutosave.where(id: author.id).join(:inner, BookAutosave, :author_id).to_a.first
       books = JSON.parse(result.to_json).as_h["books"]?
       books.should_not be_nil
       books.try &.size.should eq(2)
@@ -353,7 +353,7 @@ describe PgORM::Associations do
       book3.name = "My 3rd book"
       author.save
 
-      result = AuthorAutosave.where(id: author.id).join(BookAutosave, :author_id).to_a.first
+      result = AuthorAutosave.where(id: author.id).join(:inner, BookAutosave, :author_id).to_a.first
       books = JSON.parse(result.to_json).as_h["books"]?
       books.should_not be_nil
       books.try &.size.should eq(3)
