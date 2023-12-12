@@ -264,7 +264,7 @@ module PgORM
       @{{name.id}} : ::PgORM::Relation({{class_name}})?
 
       {% if serialize %}
-        @[PgORM::Associations::SerializeMarker(key: {{relation_var.id}})]
+        @[PgORM::Associations::SerializeMarker(key: {{relation_var.id}}, cache: {{name.id}})]
         @[JSON::Field(key: {{name.id}}, ignore_deserialize: true)]
         getter({{relation_var.id}} : Array({{class_name}})){ {{name.id}}.to_a || Array({{class_name}}).new }
       {% end %}
@@ -303,15 +303,11 @@ module PgORM
     end
 
     macro __process_assoc_serialization__
-      {% props = [] of Nil %}
       {% for ivar in @type.instance_vars %}
         {% ann = ivar.annotation(PgORM::Associations::SerializeMarker) %}
         {% if ann && ann[:key] %}
-          {% props << ann[:key] %}
+          {{ann[:key]}} if @{{ann[:cache]}}.cached?
         {% end %}
-      {% end %}
-      {% for ivar in props %}
-       {{ivar}}
       {% end %}
     end
 
