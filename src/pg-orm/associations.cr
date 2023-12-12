@@ -306,7 +306,7 @@ module PgORM
       {% for ivar in @type.instance_vars %}
         {% ann = ivar.annotation(PgORM::Associations::SerializeMarker) %}
         {% if ann && ann[:key] %}
-          {{ann[:key]}} if @{{ann[:cache]}}.cached?
+          {{ann[:key]}} if @{{ann[:cache]}}.try &.cached?
         {% end %}
       {% end %}
     end
