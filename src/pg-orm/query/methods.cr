@@ -486,6 +486,10 @@ module PgORM
         dup builder.join(model, fk, pk)
       end
 
+      def join(model : Base.class, on : String) : self
+        dup builder.join(model, on)
+      end
+
       def group_by(*columns : Symbol | String) : self
         dup builder.group_by(*columns)
       end

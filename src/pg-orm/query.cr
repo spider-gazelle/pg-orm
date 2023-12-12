@@ -181,6 +181,10 @@ module PgORM
       query.join(model, fk, pk)
     end
 
+    def join(model : Base.class, on : String) : Collection(self)
+      query.join(model, on)
+    end
+
     def group_by(*columns : Symbol | String) : Collection(self)
       query.join(*columns)
     end

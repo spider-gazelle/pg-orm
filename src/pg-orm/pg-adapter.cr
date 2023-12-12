@@ -114,11 +114,21 @@ module PgORM
 
     protected def build_join(io) : Nil
       if joins = builder.joins?
-        joins.each do |jtable, key, fkey|
-          io << " JOIN "
-          quote(jtable, io)
-          io << " ON " << "#{jtable}.#{fkey} = " << key
-          io << " "
+        joins.each do |cond|
+          case cond
+          when Tuple(String, String, String)
+            jtable, key, fkey = cond
+            io << " JOIN "
+            quote(jtable, io)
+            io << " ON " << "#{jtable}.#{fkey} = " << key
+            io << " "
+          when Tuple(String, String)
+            jtable, on = cond
+            io << " JOIN "
+            quote(jtable, io)
+            io << " ON " << on
+            io << " "
+          end
         end
       end
     end

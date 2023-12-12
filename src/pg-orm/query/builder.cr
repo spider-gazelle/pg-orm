@@ -26,7 +26,7 @@ module PgORM
     alias Selects = Array(Symbol | String)
     alias Conditions = Array(Condition | RawCondition)
     alias Orders = Array({Symbol, Symbol} | String)
-    alias Joins = Array({String, String, String})
+    alias Joins = Array({String, String, String} | {String, String})
     alias Groups = Array(Symbol | String)
 
     property table_name : String
@@ -228,7 +228,21 @@ module PgORM
       builder.join!({model.table_name, primary_key, fk.to_s})
     end
 
-    def join!(rel : Tuple(String, String, String)) : self
+    def join(model : Base.class, on : String) : self
+      builder = begin
+        join_sel = "json_agg(row_to_json(#{model.table_name})) AS #{model.table_name}_join_result"
+        if self.selects?
+          self.select(join_sel)
+        else
+          self.select("#{table_name}.*", join_sel)
+        end
+      end
+      builder.group_by!("#{table_name}.#{primary_key}") unless self.groups?
+      builder.joins = @joins.dup
+      builder.join!({model.table_name, on})
+    end
+
+    def join!(rel : Tuple(String, String, String) | Tuple(String, String)) : self
       actual = @joins ||= Joins.new
       actual << rel
       self
