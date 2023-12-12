@@ -177,12 +177,12 @@ module PgORM
       query.offset(value)
     end
 
-    def join(model : Base.class, fk : Symbol, pk : Base.class | Nil = nil) : Collection(self)
-      query.join(model, fk, pk)
+    def join(type : JoinType, model : Base.class, fk : Symbol, pk : Base.class | Nil = nil) : Collection(self)
+      query.join(type, model, fk, pk)
     end
 
-    def join(model : Base.class, on : String) : Collection(self)
-      query.join(model, on)
+    def join(type : JoinType, model : Base.class, on : String) : Collection(self)
+      query.join(type, model, on)
     end
 
     def group_by(*columns : Symbol | String) : Collection(self)

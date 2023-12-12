@@ -3,6 +3,25 @@ require "uuid"
 module PgORM
   alias Value = String | Nil | Bool | Int32 | Int64 | Float32 | Float64 | Time | UUID
 
+  enum JoinType
+    LEFT
+    RIGHT
+    INNER
+    FULL
+
+    def to_s(io : IO) : Nil
+      io << to_s.upcase
+    end
+
+    def to_sql
+      String.build do |io|
+        io << " "
+        self.to_s(io)
+        io << " JOIN "
+      end
+    end
+  end
+
   # :nodoc:
   struct Query::Builder
     struct Condition
@@ -26,7 +45,7 @@ module PgORM
     alias Selects = Array(Symbol | String)
     alias Conditions = Array(Condition | RawCondition)
     alias Orders = Array({Symbol, Symbol} | String)
-    alias Joins = Array({String, String, String} | {String, String})
+    alias Joins = Array({JoinType, String, String, String} | {JoinType, String, String})
     alias Groups = Array(Symbol | String)
 
     property table_name : String
@@ -212,39 +231,20 @@ module PgORM
       self
     end
 
-    def join(model : Base.class, fk : Symbol, pk : Base.class | Nil = nil) : self
-      builder = begin
-        join_sel = "json_agg(row_to_json(#{model.table_name})) AS #{model.table_name}_join_result"
-        if self.selects?
-          self.select(join_sel)
-        else
-          self.select("#{table_name}.*", join_sel)
-        end
-      end
-      builder.group_by!("#{table_name}.#{primary_key}") unless self.groups?
-
-      builder.joins = @joins.dup
+    def join(type : JoinType, model : Base.class, fk : Symbol, pk : Base.class | Nil = nil) : self
+      builder = join_builder(model)
       primary_key = pk.nil? ? "#{builder.table_name}.#{builder.primary_key}" : "#{pk.as(Base.class).table_name}.#{pk.as(Base.class).primary_key}"
-      builder.join!({model.table_name, primary_key, fk.to_s})
+      builder.join!(type, {model.table_name, primary_key, fk.to_s})
     end
 
-    def join(model : Base.class, on : String) : self
-      builder = begin
-        join_sel = "json_agg(row_to_json(#{model.table_name})) AS #{model.table_name}_join_result"
-        if self.selects?
-          self.select(join_sel)
-        else
-          self.select("#{table_name}.*", join_sel)
-        end
-      end
-      builder.group_by!("#{table_name}.#{primary_key}") unless self.groups?
-      builder.joins = @joins.dup
-      builder.join!({model.table_name, on})
+    def join(type : JoinType, model : Base.class, on : String) : self
+      builder = join_builder(model)
+      builder.join!(type, {model.table_name, on})
     end
 
-    def join!(rel : Tuple(String, String, String) | Tuple(String, String)) : self
+    def join!(type : JoinType, rel : Tuple(String, String, String) | Tuple(String, String)) : self
       actual = @joins ||= Joins.new
-      actual << rel
+      actual << {type, *rel}
       self
     end
 
@@ -353,6 +353,21 @@ module PgORM
         end
       end
       self
+    end
+
+    private def join_builder(model)
+      builder = begin
+        join_sel = "json_agg(row_to_json(#{model.table_name})) FILTER (WHERE #{model.table_name}.#{model.primary_key} IS NOT NULL) AS #{model.table_name}_join_result"
+        if self.selects?
+          self.select(join_sel)
+        else
+          self.select("#{table_name}.*", join_sel)
+        end
+      end
+      builder.group_by!("#{table_name}.#{primary_key}") unless self.groups?
+
+      builder.joins = @joins.dup
+      builder
     end
   end
 end

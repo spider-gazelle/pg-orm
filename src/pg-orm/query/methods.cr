@@ -482,12 +482,12 @@ module PgORM
         self
       end
 
-      def join(model : Base.class, fk : Symbol, pk : Base.class | Nil = nil) : self
-        dup builder.join(model, fk, pk)
+      def join(type : JoinType, model : Base.class, fk : Symbol, pk : Base.class | Nil = nil) : self
+        dup builder.join(type, model, fk, pk)
       end
 
-      def join(model : Base.class, on : String) : self
-        dup builder.join(model, on)
+      def join(type : JoinType, model : Base.class, on : String) : self
+        dup builder.join(type, model, on)
       end
 
       def group_by(*columns : Symbol | String) : self

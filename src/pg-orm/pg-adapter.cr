@@ -116,15 +116,15 @@ module PgORM
       if joins = builder.joins?
         joins.each do |cond|
           case cond
-          when Tuple(String, String, String)
-            jtable, key, fkey = cond
-            io << " JOIN "
+          when Tuple(JoinType, String, String, String)
+            type, jtable, key, fkey = cond
+            io << type.to_sql
             quote(jtable, io)
             io << " ON " << "#{jtable}.#{fkey} = " << key
             io << " "
-          when Tuple(String, String)
-            jtable, on = cond
-            io << " JOIN "
+          when Tuple(JoinType, String, String)
+            type, jtable, on = cond
+            io << type.to_sql
             quote(jtable, io)
             io << " ON " << on
             io << " "
