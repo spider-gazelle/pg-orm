@@ -36,7 +36,7 @@ module PgORM
       end
 
       def cached?
-        !@cache.nil?
+        !(@cache.nil? && parent.try &.extra_attributes["#{T.table_name}_join_result"]?.nil?)
       end
 
       # :nodoc:

@@ -87,8 +87,8 @@ module PgORM
         build_select(str)
         build_join(str)
         build_where(str, args)
-        build_order_by(str)
         build_groups(str)
+        build_order_by(str)
         build_limit(str)
       end
       {sql, args}

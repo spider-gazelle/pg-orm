@@ -303,11 +303,15 @@ module PgORM
     end
 
     macro __process_assoc_serialization__
+      {% props = [] of {Nil, Nil} %}
       {% for ivar in @type.instance_vars %}
         {% ann = ivar.annotation(PgORM::Associations::SerializeMarker) %}
         {% if ann && ann[:key] %}
-          {{ann[:key]}} if @{{ann[:cache]}}.try &.cached?
+          {% props << {ann[:key], ann[:cache]} %}
         {% end %}
+      {% end %}
+      {% for ivar in props %}
+        {{ivar[0]}} if {{ivar[1]}}.try &.cached?
       {% end %}
     end
 
