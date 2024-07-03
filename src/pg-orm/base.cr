@@ -279,7 +279,7 @@ module PgORM
                 @id = rs.read(PrimaryKeyType)
               {% end %}
               else
-                extra_attributes[%column_name] = rs.read(PgORM::Value)
+                extra_attributes[%column_name] = rs.read(PgORM::Value) rescue nil
             end
         end
         {% end %}
