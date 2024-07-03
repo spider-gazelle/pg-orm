@@ -37,6 +37,7 @@ Spec.before_suite do
     db.exec "DROP TABLE IF EXISTS tree"
     db.exec "DROP TABLE IF EXISTS root"
     db.exec "DROP TABLE IF EXISTS enums"
+    db.exec "DROP TABLE IF EXISTS compute"
     db.exec <<-SQL
     CREATE TABLE groups (
       id SERIAL NOT NULL PRIMARY KEY,
@@ -145,6 +146,16 @@ Spec.before_suite do
       active boolean NOT NULL
     );
     SQL
+
+    db.exec <<-SQL
+    CREATE TABLE compute (
+      id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      name VARCHAR NOT NULL,
+      ts bigint,
+      description TEXT GENERATED ALWAYS AS (name || ' description') STORED,
+      starting_time TIME GENERATED ALWAYS AS ((TO_TIMESTAMP(ts::BIGINT) AT TIME ZONE 'UTC')::TIME) STORED
+    );
+    SQL
   end
 
   1.upto(2) do |_|
@@ -171,5 +182,6 @@ Spec.after_suite do
     db.exec "DROP TABLE IF EXISTS tree"
     db.exec "DROP TABLE IF EXISTS root"
     db.exec "DROP TABLE IF EXISTS enums"
+    db.exec "DROP TABLE IF EXISTS compute"
   end
 end

@@ -288,3 +288,11 @@ class EnumFields < PgORM::Base
   attribute permissions : Permissions = Permissions::Read | Permissions::Write
   attribute active : Bool = false
 end
+
+class ModelWithComputedFields < PgORM::Base
+  table :compute
+
+  attribute name : String
+  attribute ts : Int64
+  attribute description : String, read_only: true
+end
