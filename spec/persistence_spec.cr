@@ -422,4 +422,10 @@ describe "callbacks" do
       group.reload!
     end
   end
+
+  it "handls computed fields properly" do
+    model = ModelWithComputedFields.create(name: "test", ts: Time.utc.to_unix)
+    model = ModelWithComputedFields.find(model.id)
+    model.description.should eq("test description")
+  end
 end
