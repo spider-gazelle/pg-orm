@@ -4,12 +4,12 @@ require "digest/sha1"
 require "./settings"
 
 module PgORM
-  # Postgresql Advisory Locks for PgORM
+  # Postgresql Advisory Locks for ::PgORM
   class PgAdvisoryLock
     include JSON::Serializable
     include YAML::Serializable
 
-    extend PgORM::Settings
+    extend ::PgORM::Settings
 
     @[JSON::Field(ignore: true)]
     @[YAML::Field(ignore: true)]
@@ -70,7 +70,7 @@ module PgORM
     end
 
     private def pg_lock : Nil
-      PgORM::Database.with_connection do |db|
+      ::PgORM::Database.with_connection do |db|
         db.exec "SELECT pg_advisory_lock(#{pg_key})"
       end
     end

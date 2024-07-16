@@ -17,7 +17,7 @@ module PgORM
     # - `create_association` creates the associated object, assigning the foreign
     #   key, granted that validation passed on the associated object;
     # - `create_association!` same as `create_association` but raises a
-    #   PgORM::Error::RecordNotSaved exception when validation fails;
+    #   ::PgORM::Error::RecordNotSaved exception when validation fails;
     # - `reload_association` to reload the associated object.
     #
     # For example a Book class declares `belongs_to :author` which will add:
@@ -207,12 +207,12 @@ module PgORM
       end
 
       def create_{{name.id}}(**attributes) : {{class_name}}
-        raise PgORM::Error::RecordNotSaved.new("can't initialize {{class_name}} for #{self.class.name} doesn't have an id.") unless id?
+        raise ::PgORM::Error::RecordNotSaved.new("can't initialize {{class_name}} for #{self.class.name} doesn't have an id.") unless id?
         build_{{name.id}}(**attributes).tap(&.save)
       end
 
       def create_{{name.id}}!(**attributes) : {{class_name}}
-        raise PgORM::Error::RecordNotSaved.new("can't initialize {{class_name}} for #{self.class.name} doesn't have an id.") unless id?
+        raise ::PgORM::Error::RecordNotSaved.new("can't initialize {{class_name}} for #{self.class.name} doesn't have an id.") unless id?
         build_{{name.id}}(**attributes).tap(&.save!)
       end
 

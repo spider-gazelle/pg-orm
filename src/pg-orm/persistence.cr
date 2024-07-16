@@ -89,7 +89,7 @@ module PgORM
     def save(**options)
       save!(**options)
       true
-    rescue PgORM::Error
+    rescue ::PgORM::Error
       false
     end
 
@@ -103,7 +103,7 @@ module PgORM
     # - `PgORM::Error:RecordNotSaved` if was record was not saved by DB
     # - `PgORM::Error:RecordInvalid` on validation failures
     def save!(**options)
-      raise PgORM::Error::RecordNotSaved.new("Cannot save a destroyed record!") if destroyed?
+      raise ::PgORM::Error::RecordNotSaved.new("Cannot save a destroyed record!") if destroyed?
       persisted? ? __update(**options) : __create(**options)
     end
 
@@ -113,7 +113,7 @@ module PgORM
     def update(**attributes)
       update!(**attributes)
       true
-      # rescue PgORM::Error
+      # rescue ::PgORM::Error
       #   false
     end
 
@@ -164,7 +164,7 @@ module PgORM
     # - `PgORM::Error::RecordNotSaved` if record was not previously persisted
     # - `PgORM::Error::RecordNotFound` if record fails to load
     def reload!
-      raise PgORM::Error::RecordNotSaved.new("Cannot reload unpersisted record") unless persisted?
+      raise ::PgORM::Error::RecordNotSaved.new("Cannot reload unpersisted record") unless persisted?
 
       builder = Query::Builder.new(self.class.table_name)
         .where!({self.class.primary_key => id})
@@ -175,7 +175,7 @@ module PgORM
         true
       end
 
-      raise PgORM::Error::RecordNotFound.new("Key not present: #{id}") unless found
+      raise ::PgORM::Error::RecordNotFound.new("Key not present: #{id}") unless found
 
       clear_changes_information
       self
@@ -187,7 +187,7 @@ module PgORM
       Database.transaction do
         run_update_callbacks do
           run_save_callbacks do
-            raise PgORM::Error::RecordInvalid.new(self) unless valid?
+            raise ::PgORM::Error::RecordInvalid.new(self) unless valid?
             if changed?
               self.class.update(id, self.changed_persist_attributes) # self.changed_attributes)
             end
@@ -207,7 +207,7 @@ module PgORM
       Database.transaction do
         run_create_callbacks do
           run_save_callbacks do
-            raise PgORM::Error::RecordInvalid.new(self) unless valid?
+            raise ::PgORM::Error::RecordInvalid.new(self) unless valid?
             attributes = self.persistent_attributes
             attributes.delete(primary_key) unless self.id?
             begin
@@ -217,7 +217,7 @@ module PgORM
                 self.new_record = false
               end
             rescue ex : Exception
-              raise PgORM::Error::RecordNotSaved.new("Failed to create record. Reason: #{ex.message}")
+              raise ::PgORM::Error::RecordNotSaved.new("Failed to create record. Reason: #{ex.message}")
             end
           end
         end

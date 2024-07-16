@@ -44,13 +44,13 @@ module PgORM
 
     @[JSON::Field(ignore: true)]
     @[YAML::Field(ignore: true)]
-    @extra_attributes : Hash(String, PgORM::Value)?
+    @extra_attributes : Hash(String, ::PgORM::Value)?
 
     protected def extra_attributes=(@extra_attributes : Hash(String, Value))
     end
 
-    def extra_attributes : Hash(String, PgORM::Value)
-      @extra_attributes ||= {} of String => PgORM::Value
+    def extra_attributes : Hash(String, ::PgORM::Value)
+      @extra_attributes ||= {} of String => ::PgORM::Value
     end
 
     def primary_key
@@ -206,7 +206,7 @@ module PgORM
               var_id = rs.read(PrimaryKeyType)
             {% end %}
             else
-              %extra_attributes ||= {} of String => PgORM::Value
+              %extra_attributes ||= {} of String => ::PgORM::Value
               %extra_attributes[%column_name] = begin
               ext_val = rs.read
 
@@ -302,7 +302,7 @@ module PgORM
           @{{key}} = value.as?({{ivar_type}})
           {% end %}
         else
-          raise PgORM::Error.new("no such attribute: #{self.class.name}[:#{attr}]")
+          raise ::PgORM::Error.new("no such attribute: #{self.class.name}[:#{attr}]")
         end
       end
 
@@ -349,18 +349,18 @@ module PgORM
       def self.changes(id : PrimaryKeyType{% unless PrimaryKeyType.nilable? %}?{% end %} = nil) : ChangeFeed
         feed = ChangeFeed({{@type.id}}).new(id,self)
         @@change_block << feed
-        PgORM::Database.listen_change_feed(table_name, self) if @@change_block.size == 1
+        ::PgORM::Database.listen_change_feed(table_name, self) if @@change_block.size == 1
         feed
       end
 
       # :nodoc:
       def self.stop_changefeed(receiver : ChangeFeed)
         @@change_block.delete(receiver)
-        PgORM::Database.stop_change_feed(table_name) if @@change_block.empty?
+        ::PgORM::Database.stop_change_feed(table_name) if @@change_block.empty?
       end
 
       # :nodoc:
-      def self.changefeed (event : PgORM::ChangeReceiver::Event, change : String, update : String? = nil)
+      def self.changefeed (event : ::PgORM::ChangeReceiver::Event, change : String, update : String? = nil)
         model = from_trusted_json(change)
 
         if col_update = update
@@ -400,7 +400,7 @@ module PgORM
         # Represents a Changefeed Change, where `event` represents CRUD operation and value is the model
         record(Change(T),
           value : T,
-          event : PgORM::ChangeReceiver::Event,
+          event : ::PgORM::ChangeReceiver::Event,
         ) do
 
           def created?
@@ -446,7 +446,7 @@ module PgORM
         end
 
         # :nodoc:
-        def on_event(evt : PgORM::ChangeReceiver::Event, model : T)
+        def on_event(evt : ::PgORM::ChangeReceiver::Event, model : T)
           if (@id.nil? || @id == model.id)
             change = Change(T).new(model, evt)
             @callback.try &.call(change)
