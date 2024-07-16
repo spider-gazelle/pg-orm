@@ -214,7 +214,7 @@ module PgORM
               when JSON::PullParser then JSON::Any.new(ext_val).to_json
               #when Slice(UInt8) then String.new(ext_val)
               else
-                  ext_val.as?(PgORM::Value)
+                  ext_val.as?(::PgORM::Value)
               end
             end
               #%extra_attributes[%column_name] = rs.read(PgORM::Value)

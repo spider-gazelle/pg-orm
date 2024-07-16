@@ -1,3 +1,5 @@
+require "./base"
+
 module PgORM::Table
   macro included
     macro inherited
@@ -13,22 +15,22 @@ module PgORM::Table
 
   # Macro to manually set the table name of the model
   macro table(name)
-      {% TABLE_NAME[:name] = name.id.stringify %}
-    end
+    {% TABLE_NAME[:name] = name.id.stringify %}
+  end
 
   macro __process_table__
-      {% unless PgORM::Base::TABLES.includes?(TABLE_NAME[:name]) %}
-        {% PgORM::Base::TABLES << TABLE_NAME[:name] %}
-      {% end %}
+    {% unless ::PgORM::Base::TABLES.includes?(TABLE_NAME[:name]) %}
+      {% ::PgORM::Base::TABLES << TABLE_NAME[:name] %}
+    {% end %}
 
-      @@table_name : String = {{ TABLE_NAME[:name] }}
+    @@table_name : String = {{ TABLE_NAME[:name] }}
 
-      def self.table_name
-        @@table_name
-      end
-
-      def table_name
-        @@table_name
-      end
+    def self.table_name
+      @@table_name
     end
+
+    def table_name
+      @@table_name
+    end
+  end
 end
