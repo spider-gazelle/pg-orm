@@ -156,6 +156,18 @@ Spec.before_suite do
       starting_time TIME GENERATED ALWAYS AS ((TO_TIMESTAMP(ts::BIGINT) AT TIME ZONE 'UTC')::TIME) STORED
     );
     SQL
+
+    db.exec <<-SQL
+    CREATE TABLE IF NOT EXISTS arrtest (
+      id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      arr1 TEXT [],
+      arr2 TEXT[] NOT NULL DEFAULT '{}'
+    );
+    SQL
+
+    db.exec <<-SQL
+      INSERT INTO arrtest(arr2) values('{"three","four"}');
+    SQL
   end
 
   1.upto(2) do |_|
@@ -183,5 +195,6 @@ Spec.after_suite do
     db.exec "DROP TABLE IF EXISTS root"
     db.exec "DROP TABLE IF EXISTS enums"
     db.exec "DROP TABLE IF EXISTS compute"
+    db.exec "DROP TABLE IF EXISTS arrtest"
   end
 end

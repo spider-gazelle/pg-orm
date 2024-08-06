@@ -179,7 +179,7 @@ module PgORM
               var_{{key}} =
                 {% if opts[:converter] %}
                   {{opts[:converter]}}.from_rs(rs)
-                {% elsif opts[:klass] < Array %}
+                {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Array %}
                   rs.read({{opts[:klass]}})
                 {% elsif opts[:klass] < Set %}
                   rs.read(Array({{opts[:klass].type_vars.join(' ').id}})).to_set
@@ -252,9 +252,9 @@ module PgORM
                 @{{key}} =
                   {% if opts[:converter] %}
                     {{opts[:converter]}}.from_rs(rs)
-                  {% elsif opts[:klass] < Array %}
+                  {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Array %}
                     rs.read({{opts[:klass]}})
-                  {% elsif opts[:klass] < Set %}
+                  {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Set %}
                   rs.read(Array({{opts[:klass].type_vars.join(' ').id}})).to_set
                   {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Enum %}
                     {% if opts[:klass].nilable? %}
@@ -310,9 +310,9 @@ module PgORM
         {
           {% for name, opts in PERSIST %}
             {% if !opts[:tags] || (tags = opts[:tags]) && (!tags[:read_only]) %}
-              {% if opts[:klass] < Array && !opts[:converter] %}
+              {% if opts[:klass].union_types.reject(&.==(Nil)).first < Array && !opts[:converter] %}
               :{{name}} => PQ::Param.encode_array(@{{name}} || ([] of {{opts[:klass]}})),
-              {% elsif opts[:klass] < Set %}
+              {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Set %}
               :{{name}} => PQ::Param.encode_array((@{{name}} || (Set({{opts[:klass]}}).new)).to_a),
               {% elsif opts[:klass].union_types.reject(&.==(Nil)).first < Enum && !opts[:converter] %}
               :{{name}} => @{{name}}.try &.value,

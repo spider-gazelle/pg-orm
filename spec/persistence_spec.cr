@@ -316,6 +316,21 @@ describe "callbacks" do
     model.name.should eq "bob"
   end
 
+  it "test nillable array columns" do
+    model = Arrtest.where("arr2 @> ARRAY['three']").first?
+    model.should_not be_nil
+    model = model.not_nil!
+    model.arr1.should be_nil
+
+    model.try &.reload!
+    model.arr1.should be_nil
+
+    model = Arrtest.create!(arr1: ["one"])
+    model.id.should_not be_nil
+    model.arr1.should eq(["one"])
+    model.arr2.should eq([] of String)
+  end
+
   it "test update fields on array columns" do
     model = Tree.create
     model.update_fields(roots: ["Node1", "Node2"])

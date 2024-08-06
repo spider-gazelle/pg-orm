@@ -5,7 +5,7 @@ set -eu
 # this function is called when Ctrl-C is sent
 function trap_ctrlc ()
 {
-    docker-compose down &> /dev/null
+    docker compose down &> /dev/null
     exit 2
 }
 
@@ -13,14 +13,14 @@ function trap_ctrlc ()
 # when signal 2 (SIGINT) is received
 trap "trap_ctrlc" 2
 
-docker-compose pull -q
+docker compose pull -q
 
-docker-compose build -q
+docker compose build -q
 
 exit_code="0"
 
-docker-compose run --rm pgorm "$@" || exit_code="$?"
+docker compose run --rm pgorm "$@" || exit_code="$?"
 
-docker-compose down &> /dev/null
+docker compose down &> /dev/null
 
 exit ${exit_code}

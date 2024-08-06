@@ -296,3 +296,8 @@ class ModelWithComputedFields < PgORM::Base
   attribute ts : Int64
   attribute description : String, read_only: true
 end
+
+class Arrtest < PgORM::Base
+  attribute arr1 : Array(String)? = nil
+  attribute arr2 : Array(String) = [] of String
+end
