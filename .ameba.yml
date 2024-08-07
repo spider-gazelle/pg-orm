@@ -1,5 +1,35 @@
+Lint/UselessAssign:
+  Description: Disallows useless variable assignments
+  ExcludeTypeDeclarations: false
+  Enabled: false
+  Severity: Warning
+
+Lint/NotNil:
+  Description: Identifies usage of `not_nil!` calls
+  Enabled: false
+  Severity: Warning
+
+Naming/BlockParameterName:
+  Description: Disallows non-descriptive block parameter names
+  Enabled: false
+  Severity: Convention
+
+Lint/SpecFilename:
+  Description: Enforces spec filenames to have `_spec` suffix
+  Enabled: false
+  Severity: Warning
+
+Lint/DebugCalls:
+  Description: Disallows debug-related calls
+  Enabled: false
+  Severity: Warning
+
+Lint/MissingBlockArgument:
+  Description: Disallows yielding method definitions without block argument
+  Enabled: false
+  Severity: Warning
+
 Metrics/CyclomaticComplexity:
   Description: Disallows methods with a cyclomatic complexity higher than `MaxComplexity`
-  MaxComplexity: 15
-Lint/NotNil:
   Enabled: false
+  Severity: Warning
