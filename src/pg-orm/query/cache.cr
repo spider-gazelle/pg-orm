@@ -8,7 +8,10 @@ module PgORM
       def to_a : Array(T)
         @cache ||= begin
           if (val = parent) && (json = val.extra_attributes["#{T.table_name}_join_result"]?)
-            Array(T).from_json(json.to_s)
+            Array(T).from_json(json.to_s).tap(&.each { |entry|
+              entry.new_record = false
+              entry.clear_changes_information
+            })
           else
             Database.adapter(builder).select_all { |rs| T.new(rs) }
           end
