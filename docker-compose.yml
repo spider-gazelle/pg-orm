@@ -29,6 +29,6 @@ services:
 
       ## PostgreSQL
       PG_DATABASE_URL: ${PG_DATABASE_URL:-postgresql://postgres:password@postgres:5432/pgorm_spec}
-
+      PARALELL_JOBS: 1
     depends_on:
       - postgres
