@@ -25,6 +25,8 @@ Extending [ActiveModel](https://github.com/spider-gazelle/active-model) for attr
     - [With Docker](#with-docker)
     - [Without Docker](#without-docker)
   - [Compiling](#compiling)
+  - [Benchmark](#benchmark)
+    - [Results](#results)
 
 ## Configuration
 
@@ -465,4 +467,49 @@ $ crystal spec
 
 ```shell-session
 $ shards build
+```
+
+## Benchmark
+
+Using script from [Benchmark different ORMs for crystal and postgres](https://github.com/jwoertink/crystal_orm_test) , modified to add `PgORM` to the suite.
+
+### Results
+Specs:
+```
+Machine: Apple MBP M1 Max 32GB RAM
+OS: macOS 15.2
+Crystal 1.14.0
+PG: 17.2
+DATE: 2024-12-20
+```
+
+```
+BENCHMARKING simple_insert
+                             user     system      total        real
+Avram simple_insert      0.041759   0.072528   0.114287 (  0.955047)
+Crecto simple_insert     0.029846   0.026625   0.056471 (  0.427655)
+Granite simple_insert    0.017180   0.026954   0.044134 (  0.413282)
+Jennifer simple_insert   0.033598   0.071590   0.105188 (  0.937873)
+PgORM simple_insert      0.026143   0.068314   0.094457 (  0.916158)
+BENCHMARKING simple_select
+                             user     system      total        real
+Avram simple_select      0.721817   0.090855   0.812672 (  2.037978)
+Crecto simple_select     0.817780   0.095371   0.913151 (  1.754842)
+Granite simple_select    0.652766   0.079596   0.732362 (  1.562638)
+Jennifer simple_select   0.515536   0.075688   0.591224 (  1.363594)
+PgORM simple_select      0.187846   0.045833   0.233679 (  0.867318)
+BENCHMARKING simple_update
+                             user     system      total        real
+Avram simple_update      0.073312   0.101071   0.174383 (  1.371658)
+Crecto simple_update     0.044117   0.046060   0.090177 (  0.754066)
+Granite simple_update    0.022183   0.036054   0.058237 (  0.755027)
+Jennifer simple_update   0.027320   0.050211   0.077531 (  0.759229)
+PgORM simple_update      0.008919   0.023123   0.032042 (  0.447199)
+BENCHMARKING simple_delete
+                             user     system      total        real
+Avram simple_delete      0.033921   0.049466   0.083387 (  0.765764)
+Crecto simple_delete     0.031095   0.050755   0.081850 (  0.718908)
+Granite simple_delete    0.023333   0.045345   0.068678 (  0.693689)
+Jennifer simple_delete   0.038370   0.089591   0.127961 (  1.255163)
+PgORM simple_delete      0.008872   0.025366   0.034238 (  0.442181)
 ```
