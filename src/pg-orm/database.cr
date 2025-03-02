@@ -11,8 +11,8 @@ module PgORM::Database
   extend Settings
 
   @@pool : DB::Database?
-  @@connections = {} of LibC::ULong => DB::Connection
-  @@transactions = {} of LibC::ULong => DB::Transaction
+  @@connections = {} of UInt64 => DB::Connection
+  @@transactions = {} of UInt64 => DB::Transaction
   @@info : Info?
 
   def self.configure(&) : Nil
