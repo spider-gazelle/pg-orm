@@ -17,6 +17,13 @@ module PgORM
       self.class.quote(name, io)
     end
 
+    def quote(name : Enumerable(Symbol) | Enumerable(String), io : IO)
+      name.each_with_index do |part, index|
+        io << ", " unless index.zero?
+        self.class.quote(part, io)
+      end
+    end
+
     def quote(name : Symbol | String)
       String.build do |sb|
         quote(name, sb)

@@ -113,7 +113,7 @@ module PgORM
               self.{{name.id}}.try(&.destroy)
             {% elsif dependent == :delete %}
               {{class_name}}
-              .where({ {{class_name}}.primary_key => {{foreign_key.id}} })
+              .where({ {{class_name}}.primary_key.as(Symbol) => {{foreign_key.id}} })
               .delete_all
             {% end %}
           end

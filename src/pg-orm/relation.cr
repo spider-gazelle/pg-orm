@@ -29,9 +29,13 @@ module PgORM
     end
 
     def delete(*records : T) : Nil
-      ids = records.map(&.id)
-      where({T.primary_key => ids.to_a}).delete_all
-      @cache.try(&.reject! { |r| ids.includes?(r.id) })
+      if T.primary_key.is_a?(Tuple)
+        records.each(&.delete)
+      else
+        ids = records.map(&.id)
+        where({T.primary_key.as(Symbol) => ids.to_a}).delete_all
+        @cache.try(&.reject! { |r| ids.includes?(r.id) })
+      end
     end
 
     protected def dup(builder : Query::Builder) : self

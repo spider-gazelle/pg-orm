@@ -52,6 +52,7 @@ module PgORM
         end
       end
 
+      # TODO:: Split this function up to target composite and regular ID updates
       # Updates one or many records identified by *id* in the database.
       #
       # ```
@@ -59,12 +60,48 @@ module PgORM
       # User.update([1, 2, 3], {group_id: 2})
       # ```
       def self.update(id, args) : Nil
-        where({primary_key => id}).update_all(args)
+        keys = primary_key
+        case id
+        when Enumerable
+          if keys.is_a?(Tuple)
+            # should fail to compile if this is attempted
+            # if id[0].is_a?(Enumerable)
+            #  raise "we don't support updating multiple composite primary keys"
+            # end
+            where(keys.zip(id).to_h).update_all(args)
+          else
+            where({keys => id}).update_all(args)
+          end
+        else
+          where({keys.as(Symbol) => id}).update_all(args)
+        end
       end
 
       # :ditto:
       def self.update(id, **args) : Nil
         update(id, args)
+      end
+
+      def self.delete(ids : Array(Value))
+        case keys = primary_key
+        when Symbol
+          where({keys => ids}).delete_all
+        else
+          # TODO:: have this call the other delete function, as only a single id provided...
+          raise ArgumentError.new("multiple id values required for composite primary keys")
+        end
+      end
+
+      def self.delete(ids : Array(Enumerable(Value)))
+        case keys = primary_key
+        when Tuple
+          # TODO:: Optimise this using (primary1, primary2) IN ((val1, val2), (val3, val4))
+          ids.each do |id_tuple|
+            where(keys.zip(id_tuple).to_h).delete_all
+          end
+        else
+          raise ArgumentError.new("multiple id values are only supported for composite primary keys")
+        end
       end
 
       # Deletes one or many records identified by *ids* from the database.
@@ -74,11 +111,7 @@ module PgORM
       # User.delete(1, 2, 3)
       # ```
       def self.delete(*ids) : Nil
-        if ids.size == 1
-          where({primary_key => ids.first}).delete_all
-        else
-          where({primary_key => ids.to_a}).delete_all
-        end
+        delete(ids.to_a)
       end
     end
 
@@ -167,7 +200,7 @@ module PgORM
       raise ::PgORM::Error::RecordNotSaved.new("Cannot reload unpersisted record") unless persisted?
 
       builder = Query::Builder.new(self.class.table_name)
-        .where!({self.class.primary_key => id})
+        .where!(self.primary_key_hash)
         .limit!(1)
 
       found = Database.adapter(builder).select_one do |rs|
@@ -201,7 +234,7 @@ module PgORM
     # Internal create function, runs callbacks and pushes new model to DB
     #
     private def __create(**options)
-      builder = Query::Builder.new(table_name, primary_key.to_s)
+      builder = Query::Builder.new(table_name, primary_key.first.to_s)
       adapter = Database.adapter(builder)
 
       Database.transaction do
@@ -209,10 +242,24 @@ module PgORM
           run_save_callbacks do
             raise ::PgORM::Error::RecordInvalid.new(self) unless valid?
             attributes = self.persistent_attributes
-            attributes.delete(primary_key) unless self.id?
+
+            # clear primary keys if they are not set to a value (assume auto generated)
+            keys = primary_key
+            vals = self.id?
+            case vals
+            when Nil
+              if keys.size > 0
+                primary_key.each { |key| attributes.delete(key) }
+              else
+                attributes.delete(primary_key[0])
+              end
+            when Enumerable
+              primary_key.each_with_index { |key, index| attributes.delete(key) if vals[index].nil? }
+            end
+
             begin
               adapter.insert(attributes) do |rid|
-                set_primary_key_after_create(rid) unless self.id?
+                set_primary_key_after_create(rid)
                 clear_changes_information
                 self.new_record = false
               end
@@ -229,7 +276,7 @@ module PgORM
     #
     private def __delete
       Database.with_connection do |db|
-        db.exec "DELETE FROM #{Database.quote(self.table_name)} where id = $1", id
+        db.exec "DELETE FROM #{Database.quote(self.table_name)} WHERE #{self.class.query_primary_key}", id
       end
       @destroyed = true
       clear_changes_information

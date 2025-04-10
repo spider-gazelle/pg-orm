@@ -60,7 +60,36 @@ module PgORM
 
     def find_all(ids : Array) : Collection(self)
       return none if ids.empty?
-      where({primary_key => ids})
+      case keys = primary_key
+      when Symbol
+        where({keys => ids})
+      else
+        # WHERE (primary1, primary2) IN ((val1, val2), (val3, val4))
+        where(String.build { |io|
+          io << '('
+          keys.each_with_index do |key, index|
+            io << ", " unless index.zero?
+            key.to_s(io)
+          end
+          io << ") IN ("
+
+          ids.each_with_index do |id, idx|
+            io << ", " unless idx.zero?
+            io << '('
+
+            if id.responds_to?(:each_with_index)
+              id.each_with_index do |component, index|
+                io << ", " unless index.zero?
+
+                # TODO:: escape this / format different types correctly
+                component.to_s(io)
+              end
+            end
+            io << ')'
+          end
+          io << ')'
+        })
+      end
     end
 
     def find?(id) : self?
@@ -147,7 +176,7 @@ module PgORM
       query.where(raw: sql)
     end
 
-    def where(conditions : Hash(Symbol, Value | Array(Value)) | NamedTuple) : Collection(self)
+    def where(conditions : Hash(Symbol, Value | Array(Value))) : Collection(self)
       {% begin %}
       query.where(conditions).as(Collection({{@type}}))
       {% end %}
@@ -161,7 +190,7 @@ module PgORM
       query.where(sql, *args)
     end
 
-    def where_not(conditions : Hash(Symbol, Value | Array(Value)) | NamedTuple) : Collection(self)
+    def where_not(conditions : Hash(Symbol, Value | Array(Value))) : Collection(self)
       query.where_not(conditions)
     end
 
