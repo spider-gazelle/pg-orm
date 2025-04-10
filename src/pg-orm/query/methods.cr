@@ -49,18 +49,25 @@ module PgORM
         find?(id) || raise Error::RecordNotFound.new
       end
 
+      # TODO:: split this into two functions
       # Same as `#find` but returns `nil` when the record doesn't exist.
       def find?(id : T::PrimaryKeyType) : T?
         keys = T.primary_key
-        builder = case id
-                  when Enumerable
-                    if keys.is_a?(Tuple)
-                      self.builder.where(keys.zip(id).to_h).limit(1)
+        builder = case keys
+                  when Symbol
+                    if id.is_a?(Enumerable)
+                      raise "unreachable"
                     else
                       self.builder.where({keys => id}).limit(1)
                     end
+                  when Tuple
+                    if id.is_a?(Enumerable)
+                      self.builder.where(keys.zip(id.to_a).to_h).limit(1)
+                    else
+                      raise "unreachable"
+                    end
                   else
-                    self.builder.where({keys.as(Symbol) => id}).limit(1)
+                    raise "unreachable"
                   end
         Database.adapter(builder).select_one { |rs| T.new(rs) }
       end

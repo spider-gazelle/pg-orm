@@ -52,28 +52,39 @@ module PgORM
         end
       end
 
-      # TODO:: Split this function up to target composite and regular ID updates
       # Updates one or many records identified by *id* in the database.
       #
       # ```
       # User.update(1, {name: user})
       # User.update([1, 2, 3], {group_id: 2})
       # ```
-      def self.update(id, args) : Nil
-        keys = primary_key
-        case id
-        when Enumerable
-          if keys.is_a?(Tuple)
-            # should fail to compile if this is attempted
-            # if id[0].is_a?(Enumerable)
-            #  raise "we don't support updating multiple composite primary keys"
-            # end
-            where(keys.zip(id).to_h).update_all(args)
-          else
-            where({keys => id}).update_all(args)
+      def self.update(id : Value, args) : Nil
+        case key = primary_key
+        when Symbol
+          where({key => id}).update_all(args)
+        else
+          raise ArgumentError.new("must provide multiple id values for composite primary keys")
+        end
+      end
+
+      def self.update(id : Enumerable(Value), args) : Nil
+        case key = primary_key
+        when Symbol
+          where({key => id.to_a}).update_all(args)
+        when Tuple
+          where(key.zip(id.to_a).to_h).update_all(args)
+        end
+      end
+
+      def self.update(id : Enumerable(Enumerable(Value)), args) : Nil
+        case keys = primary_key
+        when Tuple
+          # TODO:: Optimise this using (primary1, primary2) IN ((val1, val2), (val3, val4))
+          id.each do |id_tuple|
+            where(keys.zip(id_tuple.to_a).to_h).update_all(args)
           end
         else
-          where({keys.as(Symbol) => id}).update_all(args)
+          raise ArgumentError.new("multiple id values are only supported for composite primary keys")
         end
       end
 
@@ -82,22 +93,21 @@ module PgORM
         update(id, args)
       end
 
-      def self.delete(ids : Array(Value))
+      def self.delete(ids : Enumerable(Value))
         case keys = primary_key
         when Symbol
-          where({keys => ids}).delete_all
+          where({keys => ids.to_a}).delete_all
         else
-          # TODO:: have this call the other delete function, as only a single id provided...
-          raise ArgumentError.new("multiple id values required for composite primary keys")
+          delete({ids})
         end
       end
 
-      def self.delete(ids : Array(Enumerable(Value)))
+      def self.delete(ids : Enumerable(Enumerable(Value)))
         case keys = primary_key
         when Tuple
           # TODO:: Optimise this using (primary1, primary2) IN ((val1, val2), (val3, val4))
           ids.each do |id_tuple|
-            where(keys.zip(id_tuple).to_h).delete_all
+            where(keys.zip(id_tuple.to_a).to_h).delete_all
           end
         else
           raise ArgumentError.new("multiple id values are only supported for composite primary keys")
@@ -111,7 +121,7 @@ module PgORM
       # User.delete(1, 2, 3)
       # ```
       def self.delete(*ids) : Nil
-        delete(ids.to_a)
+        delete(ids)
       end
     end
 
@@ -248,11 +258,7 @@ module PgORM
             vals = self.id?
             case vals
             when Nil
-              if keys.size > 0
-                primary_key.each { |key| attributes.delete(key) }
-              else
-                attributes.delete(primary_key[0])
-              end
+              keys.each { |key| attributes.delete(key) }
             when Enumerable
               primary_key.each_with_index { |key, index| attributes.delete(key) if vals[index].nil? }
             end

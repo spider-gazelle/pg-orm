@@ -44,10 +44,13 @@ module PgORM
 
     protected def builder
       @builder ||=
-        if @parent.id?
+        case id = @parent.id?
+        when Value
           builder = Query::Builder.new(T.table_name, T.primary_key.to_s)
-          builder.where!({@foreign_key => @parent.id})
+          builder.where!({@foreign_key => id})
           builder
+        when Tuple
+          raise Error::RecordNotSaved.new("can't initialize Relation(#{T.name}) for #{@parent.class.name} as it has composite ids.")
         else
           raise Error::RecordNotSaved.new("can't initialize Relation(#{T.name}) for #{@parent.class.name} doesn't have an id.")
         end
