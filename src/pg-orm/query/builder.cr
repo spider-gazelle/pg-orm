@@ -186,10 +186,14 @@ module PgORM
       where!(conditions.to_h)
     end
 
-    def where(raw : String, *args) : self
+    def where(raw : String, *splat) : self
+      where raw, splat
+    end
+
+    def where(raw : String, args : Enumerable) : self
       builder = dup
       builder.conditions = @conditions.dup
-      builder.where!(raw, *args)
+      builder.where!(raw, args)
     end
 
     def where(raw : String) : self
@@ -201,7 +205,11 @@ module PgORM
       self
     end
 
-    def where!(raw : String, *args) : self
+    def where!(raw : String, *splat) : self
+      where!(raw, splat)
+    end
+
+    def where!(raw : String, args : Enumerable) : self
       actual = @conditions ||= Conditions.new
       if args.empty?
         actual << RawCondition.new(raw, nil, @not)

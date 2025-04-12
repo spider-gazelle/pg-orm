@@ -39,15 +39,6 @@ module PgORM
         keys.size == 1 ? keys[0] : keys
       end
 
-      class_getter query_primary_key : String do
-        String.build do |str|
-          PRIMARY_KEYS[0].each_with_index do |key, idx|
-            str << " AND " unless idx.zero?
-            str << "#{key} = $#{idx + 1}"
-          end
-        end
-      end
-
       def primary_key
         PRIMARY_KEYS[0]
       end
@@ -80,7 +71,6 @@ module PgORM
 
     def_equals attributes, changed_attributes
 
-    @[Deprecated("Use `primary_key :key1, :key2` instead")]
     macro default_primary_key(name, auto_generated = true, converter = nil, **tags)
       primary_key {{name.var.id.symbolize}}
       attribute {{name.var}} : {{name.type.resolve}}, mass_assignment: false, auto_generated: {{auto_generated}},

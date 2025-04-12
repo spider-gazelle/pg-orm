@@ -314,16 +314,16 @@ class ModelWithComputedFields < PgORM::Base
   attribute description : String, read_only: true
 end
 
+class Arrtest < PgORM::Base
+  attribute id : Int64
+  attribute arr1 : Array(String)? = nil
+  attribute arr2 : Array(String) = [] of String
+end
+
 class CompositeKeys < PgORM::Base
   primary_key :key_one, :key_two
 
   attribute key_one : String
   attribute key_two : String
   attribute payload : String
-end
-
-class Arrtest < PgORM::Base
-  attribute id : Int64
-  attribute arr1 : Array(String)? = nil
-  attribute arr2 : Array(String) = [] of String
 end

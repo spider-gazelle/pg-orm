@@ -79,10 +79,7 @@ module PgORM
       def self.update(id : Enumerable(Enumerable(Value)), args) : Nil
         case keys = primary_key
         when Tuple
-          # TODO:: Optimise this using (primary1, primary2) IN ((val1, val2), (val3, val4))
-          id.each do |id_tuple|
-            where(keys.zip(id_tuple.to_a).to_h).update_all(args)
-          end
+          find_all(id).update_all(args)
         else
           raise ArgumentError.new("multiple id values are only supported for composite primary keys")
         end
@@ -105,10 +102,7 @@ module PgORM
       def self.delete(ids : Enumerable(Enumerable(Value)))
         case keys = primary_key
         when Tuple
-          # TODO:: Optimise this using (primary1, primary2) IN ((val1, val2), (val3, val4))
-          ids.each do |id_tuple|
-            where(keys.zip(id_tuple.to_a).to_h).delete_all
-          end
+          find_all(ids).delete_all
         else
           raise ArgumentError.new("multiple id values are only supported for composite primary keys")
         end
@@ -281,9 +275,14 @@ module PgORM
     # Delete record in table, update model metadata
     #
     private def __delete
-      Database.with_connection do |db|
-        db.exec "DELETE FROM #{Database.quote(self.table_name)} WHERE #{self.class.query_primary_key}", id
+      keys = self.primary_key
+      case ids = self.id
+      when Tuple
+        self.class.where(keys.zip(ids.to_a).to_h).delete_all
+      else
+        self.class.where({keys[0] => ids}).delete_all
       end
+
       @destroyed = true
       clear_changes_information
       true
