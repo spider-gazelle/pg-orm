@@ -16,7 +16,7 @@ services:
       context: ${PWD}
       dockerfile: Dockerfile.${PGORM_ENV:-spec}
       args:
-        CRYSTAL_VERSION: ${CRYSTAL_VERSION:-1.14.1}
+        CRYSTAL_VERSION: ${CRYSTAL_VERSION:-1.16.0}
     hostname: pgorm
     container_name: pgorm
     volumes:
