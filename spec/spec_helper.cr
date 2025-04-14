@@ -158,6 +158,15 @@ Spec.before_suite do
     SQL
 
     db.exec <<-SQL
+    CREATE TABLE composite_keys (
+      key_one TEXT NOT NULL,
+      key_two TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      PRIMARY KEY (key_one, key_two)
+    );
+    SQL
+
+    db.exec <<-SQL
     CREATE TABLE IF NOT EXISTS arrtest (
       id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       arr1 TEXT [],

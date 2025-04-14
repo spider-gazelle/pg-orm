@@ -1,8 +1,6 @@
-version: "3.7"
-
 services:
   postgres:
-    image: postgres:13-alpine
+    image: postgres:17-alpine
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 30s
@@ -18,7 +16,7 @@ services:
       context: ${PWD}
       dockerfile: Dockerfile.${PGORM_ENV:-spec}
       args:
-        CRYSTAL_VERSION: ${CRYSTAL_VERSION:-1.5.0}
+        CRYSTAL_VERSION: ${CRYSTAL_VERSION:-1.16.0}
     hostname: pgorm
     container_name: pgorm
     volumes:

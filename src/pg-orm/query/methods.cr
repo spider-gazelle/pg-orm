@@ -28,7 +28,12 @@ module PgORM
           cache.map(&.id)
         else
           builder = self.builder.unscope(:select)
-          builder.select!(T.primary_key)
+          case keys = T.primary_key
+          when Tuple
+            builder.select!(*keys)
+          else
+            builder.select!(keys.as(Symbol))
+          end
           Database.adapter(builder).select_all(&.read(T::PrimaryKeyType))
         end
       end
@@ -46,7 +51,14 @@ module PgORM
 
       # Same as `#find` but returns `nil` when the record doesn't exist.
       def find?(id : T::PrimaryKeyType) : T?
-        builder = self.builder.where({T.primary_key => id}).limit(1)
+        keys = T.primary_key
+        keys = {keys} unless keys.is_a?(Tuple)
+        case id
+        when Tuple
+          builder = self.builder.where(keys.zip(id.to_a).to_h).limit(1)
+        else
+          builder = self.builder.where({keys[0] => id}).limit(1)
+        end
         Database.adapter(builder).select_one { |rs| T.new(rs) }
       end
 
@@ -91,10 +103,17 @@ module PgORM
       # # => SELECT 1 AS one FROM "users" WHERE "group_id" = 1 AND "id" = 2 LIMIT 1;
       # ```
       def exists?(id : T::PrimaryKeyType) : Bool
-        builder = self.builder.unscope(:select, :order, :offset)
-          .select!("1 AS one")
-          .where!({T.primary_key => id})
-          .limit!(1)
+        keys = T.primary_key
+        keys = {keys} unless keys.is_a?(Tuple)
+        builder = self.builder.unscope(:select, :order, :offset).select!("1 AS one")
+
+        case id
+        when Tuple
+          builder = builder.where!(keys.zip(id).to_h).limit!(1)
+        else
+          builder = builder.where!({keys[0] => id}).limit!(1)
+        end
+
         Database.adapter(builder).select_one { |_| true } || false
       end
 
@@ -149,7 +168,9 @@ module PgORM
           cache.first?
         else
           builder = self.builder.limit(1)
-          builder.order!({T.primary_key => :asc}) unless builder.orders?
+          keys = T.primary_key
+          keys = {keys} unless keys.is_a?(Tuple)
+          builder.order!({keys[0] => :asc}) || builder.orders?
           Database.adapter(builder).select_one { |rs| T.new(rs) }
         end
       end
@@ -197,7 +218,9 @@ module PgORM
               end
             end
           else
-            builder.order!({T.primary_key => :desc})
+            keys = T.primary_key
+            keys = {keys} unless keys.is_a?(Tuple)
+            builder.order!({keys[0] => :desc})
           end
           Database.adapter(builder).select_one { |rs| T.new(rs) }
         end
@@ -396,6 +419,16 @@ module PgORM
         self
       end
 
+      # :nodoc:
+      def where(conditions : NamedTuple)
+        where(conditions).to_h
+      end
+
+      # :nodoc:
+      def where!(conditions : NamedTuple)
+        where!(conditions).to_h
+      end
+
       # Specify WHERE conditions for the query. For example:
       # ```
       # User.where(name: "user", group_id: 2)
@@ -450,13 +483,23 @@ module PgORM
       # User.where("LENGTH(name) > ?", 10)
       # # => SELECT * FROM "users" WHERE LENGTH(name) > 10;
       # ```
-      def where(sql : String, *args : Value) : self
-        dup builder.where(sql, *args)
+      def where(sql : String, *splat : Value) : self
+        where(sql, splat)
       end
 
       # :nodoc:
-      def where!(sql : String, *args : Value) : self
-        builder.where!(sql, *args)
+      def where!(sql : String, *splat : Value) : self
+        where!(sql, splat)
+      end
+
+      # :nodoc:
+      def where(sql : String, args : Enumerable) : self
+        dup builder.where(sql, args: args)
+      end
+
+      # :nodoc:
+      def where!(sql : String, args : Enumerable) : self
+        builder.where!(sql, args: args)
         self
       end
 

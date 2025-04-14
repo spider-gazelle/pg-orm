@@ -3,16 +3,18 @@ require "uuid"
 
 class Foo < PgORM::Base
   table :foo
-  attribute id : Int32, primary_key: true
+  attribute id : Int32
 end
 
 class Bar < PgORM::Base
-  attribute uuid : UUID, primary_key: true
+  primary_key :uuid
+
+  attribute uuid : UUID
 end
 
 class Baz < PgORM::Base
   table :baz_table
-  attribute id : Int32, primary_key: true
+  attribute id : Int32
   attribute name : String
   attribute about : String? = nil
 end
@@ -88,7 +90,7 @@ describe PgORM::Table do
   it "should work with models without primary key" do
     model = ModelWithDefaults.new
 
-    model.primary_key.should eq(:id)
+    model.primary_key.should eq({:id})
     ModelWithDefaults::PrimaryKeyType.should eq(typeof(model.id))
   end
 end

@@ -58,9 +58,52 @@ module PgORM
       query.find(id)
     end
 
-    def find_all(ids : Array) : Collection(self)
+    def find_all(ids : Enumerable(Value)) : Collection(self)
       return none if ids.empty?
-      where({primary_key => ids})
+      case keys = primary_key
+      when Symbol
+        where({keys => ids.to_a})
+      else
+        raise ArgumentError.new("must provide multiple key ids for tables with composite keys")
+      end
+    end
+
+    def find_all(ids : Enumerable(Enumerable)) : Collection(self)
+      return none if ids.empty?
+      case keys = primary_key
+      when Tuple
+        # might be able to optimise this by checking if individual id components
+        # already exist in the data array and re-using the `$indexes` but probably
+        # not worth the effort
+        data = [] of Value
+
+        # WHERE (primary1, primary2) IN ((val1, val2), (val3, val4))
+        where(String.build { |io|
+          io << '('
+          keys.each_with_index do |key, index|
+            io << ", " unless index.zero?
+            io << PG::EscapeHelper.escape_identifier(key.to_s)
+          end
+          io << ") IN ("
+
+          ids.each_with_index do |id, idx|
+            io << ", " unless idx.zero?
+            io << '('
+
+            if id.responds_to?(:each_with_index)
+              id.each_with_index do |component, index|
+                io << ", " unless index.zero?
+                data << component
+                io << '?'
+              end
+            end
+            io << ')'
+          end
+          io << ')'
+        }, args: data)
+      else
+        raise ArgumentError.new("multiple key ids are only supported on composite key tables")
+      end
     end
 
     def find?(id) : self?
@@ -157,8 +200,12 @@ module PgORM
       query.where(**conditions)
     end
 
-    def where(sql : String, *args : Value) : Collection(self)
-      query.where(sql, *args)
+    def where(sql : String, *splat : Value) : Collection(self)
+      query.where(sql, *splat)
+    end
+
+    def where(sql : String, args : Enumerable) : Collection(self)
+      query.where(sql, args: args)
     end
 
     def where_not(conditions : Hash(Symbol, Value | Array(Value)) | NamedTuple) : Collection(self)

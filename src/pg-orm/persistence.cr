@@ -58,13 +58,54 @@ module PgORM
       # User.update(1, {name: user})
       # User.update([1, 2, 3], {group_id: 2})
       # ```
-      def self.update(id, args) : Nil
-        where({primary_key => id}).update_all(args)
+      def self.update(id : Value, args) : Nil
+        case key = primary_key
+        when Symbol
+          where({key => id}).update_all(args)
+        else
+          raise ArgumentError.new("must provide multiple id values for composite primary keys")
+        end
+      end
+
+      def self.update(id : Enumerable(Value), args) : Nil
+        case key = primary_key
+        when Symbol
+          where({key => id.to_a}).update_all(args)
+        when Tuple
+          where(key.zip(id.to_a).to_h).update_all(args)
+        end
+      end
+
+      def self.update(id : Enumerable(Enumerable(Value)), args) : Nil
+        case keys = primary_key
+        when Tuple
+          find_all(id).update_all(args)
+        else
+          raise ArgumentError.new("multiple id values are only supported for composite primary keys")
+        end
       end
 
       # :ditto:
       def self.update(id, **args) : Nil
         update(id, args)
+      end
+
+      def self.delete(ids : Enumerable(Value))
+        case keys = primary_key
+        when Symbol
+          where({keys => ids.to_a}).delete_all
+        else
+          delete({ids})
+        end
+      end
+
+      def self.delete(ids : Enumerable(Enumerable(Value)))
+        case keys = primary_key
+        when Tuple
+          find_all(ids).delete_all
+        else
+          raise ArgumentError.new("multiple id values are only supported for composite primary keys")
+        end
       end
 
       # Deletes one or many records identified by *ids* from the database.
@@ -74,11 +115,7 @@ module PgORM
       # User.delete(1, 2, 3)
       # ```
       def self.delete(*ids) : Nil
-        if ids.size == 1
-          where({primary_key => ids.first}).delete_all
-        else
-          where({primary_key => ids.to_a}).delete_all
-        end
+        delete(ids)
       end
     end
 
@@ -167,7 +204,7 @@ module PgORM
       raise ::PgORM::Error::RecordNotSaved.new("Cannot reload unpersisted record") unless persisted?
 
       builder = Query::Builder.new(self.class.table_name)
-        .where!({self.class.primary_key => id})
+        .where!(self.primary_key_hash)
         .limit!(1)
 
       found = Database.adapter(builder).select_one do |rs|
@@ -201,7 +238,7 @@ module PgORM
     # Internal create function, runs callbacks and pushes new model to DB
     #
     private def __create(**options)
-      builder = Query::Builder.new(table_name, primary_key.to_s)
+      builder = Query::Builder.new(table_name, primary_key.first.to_s)
       adapter = Database.adapter(builder)
 
       Database.transaction do
@@ -209,10 +246,20 @@ module PgORM
           run_save_callbacks do
             raise ::PgORM::Error::RecordInvalid.new(self) unless valid?
             attributes = self.persistent_attributes
-            attributes.delete(primary_key) unless self.id?
+
+            # clear primary keys if they are not set to a value (assume auto generated)
+            keys = primary_key
+            vals = self.id?
+            case vals
+            when Nil
+              keys.each { |key| attributes.delete(key) }
+            when Enumerable
+              primary_key.each_with_index { |key, index| attributes.delete(key) if vals[index].nil? }
+            end
+
             begin
               adapter.insert(attributes) do |rid|
-                set_primary_key_after_create(rid) unless self.id?
+                set_primary_key_after_create(rid)
                 clear_changes_information
                 self.new_record = false
               end
@@ -228,9 +275,14 @@ module PgORM
     # Delete record in table, update model metadata
     #
     private def __delete
-      Database.with_connection do |db|
-        db.exec "DELETE FROM #{Database.quote(self.table_name)} where id = $1", id
+      keys = self.primary_key
+      case ids = self.id
+      when Tuple
+        self.class.where(keys.zip(ids.to_a).to_h).delete_all
+      else
+        self.class.where({keys[0] => ids}).delete_all
       end
+
       @destroyed = true
       clear_changes_information
       true

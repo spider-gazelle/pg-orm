@@ -29,9 +29,13 @@ module PgORM
     end
 
     def delete(*records : T) : Nil
-      ids = records.map(&.id)
-      where({T.primary_key => ids.to_a}).delete_all
-      @cache.try(&.reject! { |r| ids.includes?(r.id) })
+      if T.primary_key.is_a?(Tuple)
+        records.each(&.delete)
+      else
+        ids = records.map(&.id)
+        where({T.primary_key.as(Symbol) => ids.to_a}).delete_all
+        @cache.try(&.reject! { |r| ids.includes?(r.id) })
+      end
     end
 
     protected def dup(builder : Query::Builder) : self
@@ -40,9 +44,9 @@ module PgORM
 
     protected def builder
       @builder ||=
-        if @parent.id?
+        if (id = @parent.id?) && id.is_a?(Value)
           builder = Query::Builder.new(T.table_name, T.primary_key.to_s)
-          builder.where!({@foreign_key => @parent.id})
+          builder.where!({@foreign_key => id})
           builder
         else
           raise Error::RecordNotSaved.new("can't initialize Relation(#{T.name}) for #{@parent.class.name} doesn't have an id.")

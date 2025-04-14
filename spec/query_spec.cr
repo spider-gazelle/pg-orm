@@ -195,8 +195,11 @@ describe PgORM::Query do
       typeof(User.find_one_by_sql("SELECT * FROM users LIMIT 1")).should eq(User)
       typeof(Group.find_one_by_sql("SELECT * FROM groups LIMIT 1")).should eq(Group)
 
-      User.find_one_by_sql("SELECT * FROM users LIMIT 1").is_a?(User).should be_true
+      user = User.find_one_by_sql("SELECT * FROM users LIMIT 1")
+      user.is_a?(User).should be_true
       Group.find_one_by_sql("SELECT * FROM groups LIMIT 1").is_a?(Group).should be_true
+
+      User.find_all([user.id]).size.should eq 1
 
       expect_raises(PgORM::Error::RecordNotFound) { User.find_one_by_sql(user_sql, UUID.random) }
       expect_raises(PgORM::Error::RecordNotFound) { Group.find_one_by_sql(group_sql, Int32::MAX - 10) }
