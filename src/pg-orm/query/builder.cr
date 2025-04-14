@@ -159,13 +159,13 @@ module PgORM
       @not = false
     end
 
-    def where(conditions : Hash(Symbol, Value | Regex | Array(Value))) : self
+    def where(conditions : Hash(Symbol, Value | Regex | Array(Value)) | NamedTuple) : self
       builder = dup
       builder.conditions = @conditions.dup
       builder.where!(conditions)
     end
 
-    def where!(conditions : Hash(Symbol, Value | Regex | Array(Value))) : self
+    def where!(conditions : Hash(Symbol, Value | Regex | Array(Value)) | NamedTuple) : self
       actual = @conditions ||= Conditions.new
       conditions.each do |k, v|
         if v.is_a?(Enumerable)

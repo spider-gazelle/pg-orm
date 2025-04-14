@@ -409,12 +409,12 @@ module PgORM
       # User.where({:group_id => [1, 2, 3]})
       # # => SELECT * FROM "users" WHERE "group_id" IN (1, 2, 3);
       # ```
-      def where(conditions : Hash(Symbol, Value | Array(Value))) : self
+      def where(conditions : Hash(Symbol, Value | Array(Value)) | NamedTuple) : self
         dup builder.where(conditions)
       end
 
       # :nodoc:
-      def where!(conditions : Hash(Symbol, Value | Array(Value))) : self
+      def where!(conditions : Hash(Symbol, Value | Array(Value)) | NamedTuple) : self
         builder.where!(conditions)
         self
       end

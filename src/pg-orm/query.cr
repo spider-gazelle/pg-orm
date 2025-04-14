@@ -190,7 +190,7 @@ module PgORM
       query.where(raw: sql)
     end
 
-    def where(conditions : Hash(Symbol, Value | Array(Value))) : Collection(self)
+    def where(conditions : Hash(Symbol, Value | Array(Value)) | NamedTuple) : Collection(self)
       {% begin %}
       query.where(conditions).as(Collection({{@type}}))
       {% end %}
@@ -208,7 +208,7 @@ module PgORM
       query.where(sql, args: args)
     end
 
-    def where_not(conditions : Hash(Symbol, Value | Array(Value))) : Collection(self)
+    def where_not(conditions : Hash(Symbol, Value | Array(Value)) | NamedTuple) : Collection(self)
       query.where_not(conditions)
     end
 
