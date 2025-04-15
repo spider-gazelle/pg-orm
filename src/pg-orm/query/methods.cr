@@ -419,16 +419,6 @@ module PgORM
         self
       end
 
-      # :nodoc:
-      def where(conditions : NamedTuple)
-        where(conditions).to_h
-      end
-
-      # :nodoc:
-      def where!(conditions : NamedTuple)
-        where!(conditions).to_h
-      end
-
       # Specify WHERE conditions for the query. For example:
       # ```
       # User.where(name: "user", group_id: 2)

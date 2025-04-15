@@ -38,6 +38,7 @@ Spec.before_suite do
     db.exec "DROP TABLE IF EXISTS root"
     db.exec "DROP TABLE IF EXISTS enums"
     db.exec "DROP TABLE IF EXISTS compute"
+    db.exec "DROP TABLE IF EXISTS composite_keys"
     db.exec <<-SQL
     CREATE TABLE groups (
       id SERIAL NOT NULL PRIMARY KEY,
@@ -205,5 +206,6 @@ Spec.after_suite do
     db.exec "DROP TABLE IF EXISTS enums"
     db.exec "DROP TABLE IF EXISTS compute"
     db.exec "DROP TABLE IF EXISTS arrtest"
+    db.exec "DROP TABLE IF EXISTS composite_keys"
   end
 end

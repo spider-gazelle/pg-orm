@@ -164,6 +164,16 @@ describe PgORM::Query do
       User.where(uuid: UUID.random).take?.should be_nil
     end
 
+    it "test where(NamedTuple)" do
+      group = Group.first
+      User.where({group_id: group.id}).to_a.size.should be > 1
+    end
+
+    it "test where_not(NamedTuple)" do
+      group = Group.first
+      User.where_not({group_id: group.id}).to_a.size.should be > 1
+    end
+
     it "test find_by" do
       typeof(User.find_by(uuid: UUID.random)).should eq(User)
       typeof(Group.find_by(id: group_id)).should eq(Group)
