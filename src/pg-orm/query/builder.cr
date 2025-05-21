@@ -248,13 +248,13 @@ module PgORM
     end
 
     def join(type : JoinType, model : Base.class, fk : Symbol, pk : Base.class | Nil = nil) : self
-      builder = join_builder(model)
+      builder = join_builder(model, fk)
       primary_key = pk.nil? ? "#{builder.table_name}.#{builder.primary_key}" : "#{pk.as(Base.class).table_name}.#{pk.as(Base.class).primary_key}"
       builder.join!(type, {model.table_name, primary_key, fk.to_s})
     end
 
     def join(type : JoinType, model : Base.class, on : String) : self
-      builder = join_builder(model)
+      builder = join_builder(model, on)
       builder.join!(type, {model.table_name, on})
     end
 
@@ -371,9 +371,15 @@ module PgORM
       self
     end
 
-    private def join_builder(model)
+    private def join_builder(model, fk)
       builder = begin
-        join_sel = "json_agg(row_to_json(#{model.table_name})) FILTER (WHERE #{model.table_name}.#{model.primary_key} IS NOT NULL) AS #{model.table_name}_join_result"
+        keys = model.primary_key
+        if keys.is_a?(Tuple)
+          join_sel = "json_agg(row_to_json(#{model.table_name})) FILTER (WHERE #{model.table_name}.#{fk} IS NOT NULL) AS #{model.table_name}_join_result"
+        else
+          join_sel = "json_agg(row_to_json(#{model.table_name})) FILTER (WHERE #{model.table_name}.#{model.primary_key} IS NOT NULL) AS #{model.table_name}_join_result"
+        end
+
         if self.selects?
           self.select(join_sel)
         else
