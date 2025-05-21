@@ -263,6 +263,8 @@ module PgORM
       # ```
       def count(column_name : Symbol | String = "*", distinct = builder.distinct?) : Int64
         calculate("COUNT", column_name, distinct).as(Int).to_i64
+      rescue ::DB::NoResultsError
+        0_i64
       end
 
       # Calculates the sum of a column.
