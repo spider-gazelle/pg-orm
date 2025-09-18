@@ -1,4 +1,5 @@
 require "db"
+require "log"
 require "uuid"
 require "active-model"
 require "./database"
@@ -22,6 +23,7 @@ module PgORM
     include Validators
     extend ChangeReceiver
 
+    Log    = ::Log.for(self)
     TABLES = [] of String
 
     macro inherited
@@ -362,8 +364,12 @@ module PgORM
 
       # :nodoc:
       def self.changefeed (event : ::PgORM::ChangeReceiver::Event, change : String, update : String? = nil)
+        begin
         model = from_trusted_json(change)
-
+          rescue ex : Exception
+            Log.error(exception: ex) { {message: "Error encountering while parsing changefeed event - skipping", json: change} }
+            return
+          end
         if col_update = update
           model_old_raw = JSON.parse(change).as_h
           col_changes = JSON.parse(col_update).as_a.map(&.as_h)
@@ -376,7 +382,13 @@ module PgORM
               model_old_raw[{{key.stringify}}] = delta["old"]
             end
           {% end %}
-          model_old = from_trusted_json(model_old_raw.to_json)
+          begin
+            old_json = model_old_raw.to_json
+            model_old = from_trusted_json(old_json)
+          rescue ex : Exception
+            Log.error(exception: ex) { {message: "Error encountering while parsing delta changefeed event - skipping", json: old_json} }
+            return
+          end
 
           # apply the changes to the model
           {% for key, opts in PERSIST %}
