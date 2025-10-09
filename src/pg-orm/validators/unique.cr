@@ -67,7 +67,7 @@ module PgORM::Validators
         {% end %}
 
         # Fields are not present in another record under present table
-        success = !(doc && doc.id != this.id)
+        success = !(doc && (!this.persisted? || doc.id != this.id))
         {% if transform || callback %}
           # Set fields in unique scope with result of transform block if record is unique
           if success && !this.persisted?
