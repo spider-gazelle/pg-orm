@@ -212,7 +212,7 @@ module PgORM::Database
       @table_name,
       @table_type,
       @table_schema,
-      @table_catalog
+      @table_catalog,
     )
     end
 

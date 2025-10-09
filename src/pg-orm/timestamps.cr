@@ -6,8 +6,8 @@ require "time"
 #
 module PgORM::Timestamps
   macro included
-    attribute created_at : Time = ->{ Time.utc }
-    attribute updated_at : Time = ->{ Time.utc }
+    attribute created_at : Time = -> { Time.utc }
+    attribute updated_at : Time = -> { Time.utc }
 
     before_create do
       self.created_at = self.updated_at = Time.utc

@@ -36,7 +36,7 @@ end
 
 class Tree < PgORM::Base
   attribute id : Int64
-  attribute roots : Array(String) = ->{ [] of String }
+  attribute roots : Array(String) = -> { [] of String }
 
   def self.by_root_id(id)
     Tree.find_all_by_sql(<<-SQL)
