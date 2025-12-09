@@ -165,8 +165,76 @@ module PgORM
       else
         io << '*'
       end
+
+      # Add rank column if full-text search with ranking is used
+      if rank_col = builder.fts_rank_column
+        io << ", " if selects || true
+        build_fts_rank_select(io)
+      end
+
       io << " FROM "
       quote(builder.table_name, io)
+    end
+
+    protected def build_fts_rank_select(io) : Nil
+      return unless conditions = builder.conditions?
+
+      fts_condition = conditions.find { |c| c.is_a?(Query::Builder::FullTextSearchCondition) }
+      return unless fts_condition.is_a?(Query::Builder::FullTextSearchCondition)
+
+      search_query = fts_condition.search_query
+
+      # Use the specified rank function (ts_rank or ts_rank_cd)
+      io << search_query.rank_function.to_s << "("
+
+      # Build tsvector (with or without weights)
+      if weighted_cols = search_query.weighted_columns
+        build_weighted_tsvector(io, weighted_cols, search_query.config)
+      else
+        build_tsvector_concat(io, search_query.columns, search_query.config)
+      end
+
+      io << ", "
+
+      # Build tsquery
+      build_tsquery(io, search_query)
+
+      if norm = search_query.rank_normalization
+        io << ", " << norm
+      end
+
+      io << ") AS ts_rank"
+    end
+
+    protected def build_tsvector_concat(io, columns : Array(String), config : String)
+      columns.each_with_index do |col, idx|
+        io << " || ' ' || " unless idx == 0
+        io << "to_tsvector('" << config << "', COALESCE("
+        quote(col, io)
+        io << ", ''))"
+      end
+    end
+
+    protected def build_weighted_tsvector(io, weighted_columns : Array(FullTextSearch::WeightedColumn), config : String)
+      weighted_columns.each_with_index do |wcol, idx|
+        io << " || " unless idx == 0
+        io << "setweight(to_tsvector('" << config << "', COALESCE("
+        quote(wcol.column, io)
+        io << ", '')), '" << wcol.weight.to_char << "')"
+      end
+    end
+
+    protected def build_tsquery(io, search_query : FullTextSearch::SearchQuery)
+      if search_query.use_plain_query?
+        io << "plainto_tsquery('" << search_query.config << "', "
+      else
+        io << "to_tsquery('" << search_query.config << "', "
+      end
+
+      # Escape single quotes in the query string
+      escaped_query = search_query.query.gsub("'", "''")
+      io << '\'' << escaped_query << '\''
+      io << ')'
     end
 
     private def build_insert(attributes : Hash, io, args)
@@ -270,8 +338,12 @@ module PgORM
       return unless conditions = builder.conditions?
       has_join = !builder.joins?.nil?
       io << " WHERE "
+      build_where_conditions(conditions, io, args, has_join)
+    end
+
+    private def build_where_conditions(conditions, io, args, has_join = false, first = true) : Nil
       conditions.each_with_index do |condition, index|
-        io << " AND " unless index == 0
+        io << " AND " if index != 0 && first
 
         case condition
         when Query::Builder::Condition
@@ -327,6 +399,27 @@ module PgORM
             io << condition.raw
           end
 
+          io << ')'
+        when Query::Builder::FullTextSearchCondition
+          search_query = condition.search_query
+          io << '('
+
+          # Build tsvector (with or without weights)
+          if weighted_cols = search_query.weighted_columns
+            build_weighted_tsvector(io, weighted_cols, search_query.config)
+          else
+            build_tsvector_concat(io, search_query.columns, search_query.config)
+          end
+
+          io << ") @@ "
+
+          # Build tsquery
+          build_tsquery(io, search_query)
+        when Query::Builder::OrCondition
+          io << '('
+          build_where_conditions(condition.left_conditions, io, args, has_join, true)
+          io << ") OR ("
+          build_where_conditions(condition.right_conditions, io, args, has_join, true)
           io << ')'
         end
       end

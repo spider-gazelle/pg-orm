@@ -620,4 +620,177 @@ describe PgORM::Query do
       b.offset?.should be_nil
     end
   end
+
+  describe "Query Optimization" do
+    it "returns EXPLAIN ANALYZE output" do
+      query = BasicModel.where(age: 10).limit(5)
+      explain_output = query.explain
+
+      # Should contain PostgreSQL EXPLAIN output
+      explain_output.should contain("Seq Scan")
+      explain_output.should_not be_empty
+    end
+
+    it "works with complex queries" do
+      query = BasicModel.where(age: 10).order(:name).limit(10).offset(5)
+      explain_output = query.explain
+
+      explain_output.should contain("Limit")
+      explain_output.should_not be_empty
+    end
+
+    it "works with joins" do
+      author = Author.create!(name: "Test Author")
+      Book.create!(name: "Test Book", author_id: author.id)
+
+      query = Author.join(:left, Book, :author_id).where(id: author.id)
+      explain_output = query.explain
+
+      explain_output.should contain("Join")
+      explain_output.should_not be_empty
+    end
+
+    it "works with full-text search" do
+      Article.create!(title: "Crystal Programming", content: "Learn Crystal")
+
+      query = Article.search("crystal", :title, :content)
+      explain_output = query.explain
+
+      # Should show the query plan
+      explain_output.should_not be_empty
+      explain_output.should be_a(String)
+    end
+
+    it "works with pagination" do
+      5.times { |i| BasicModel.create!(name: "Test #{i}", age: i) }
+
+      result = BasicModel.where(age: 1).paginate(page: 1, limit: 2)
+
+      # Get the query and explain it
+      query = BasicModel.where(age: 1).limit(2).offset(0)
+      explain_output = query.explain
+
+      explain_output.should_not be_empty
+      explain_output.should contain("Limit")
+    end
+  end
+
+  describe "in_groups_of" do
+    before_each do
+      BasicModel.clear
+      10.times { |i| BasicModel.create!(name: "Model #{i}", age: i) }
+    end
+
+    it "batches records into groups of specified size" do
+      groups = [] of Array(BasicModel | Nil)
+      BasicModel.all.in_groups_of(3) do |group|
+        groups << group
+      end
+
+      groups.size.should eq(4) # 10 records / 3 = 4 groups
+      groups[0].size.should eq(3)
+      groups[1].size.should eq(3)
+      groups[2].size.should eq(3)
+      groups[3].size.should eq(3) # Last group padded with nil
+      groups[3][0].should be_a(BasicModel)
+      groups[3][1].should be_nil
+      groups[3][2].should be_nil
+    end
+
+    it "fills last group with specified value" do
+      groups = [] of Array(BasicModel | String)
+      BasicModel.all.in_groups_of(3, filled_up_with: "padding") do |group|
+        groups << group
+      end
+
+      groups.size.should eq(4)
+      groups[3][1].should eq("padding")
+      groups[3][2].should eq("padding")
+    end
+
+    it "works with exact multiples" do
+      BasicModel.clear
+      9.times { |i| BasicModel.create!(name: "Model #{i}", age: i) }
+
+      groups = [] of Array(BasicModel | Nil)
+      BasicModel.all.in_groups_of(3) do |group|
+        groups << group
+      end
+
+      groups.size.should eq(3)
+      groups.each do |group|
+        group.size.should eq(3)
+        group.all?(BasicModel).should be_true
+      end
+    end
+
+    it "works with single record" do
+      BasicModel.clear
+      BasicModel.create!(name: "Only", age: 1)
+
+      groups = [] of Array(BasicModel | Nil)
+      BasicModel.all.in_groups_of(3) do |group|
+        groups << group
+      end
+
+      groups.size.should eq(1)
+      groups[0].size.should eq(3)
+      groups[0][0].should be_a(BasicModel)
+      groups[0][1].should be_nil
+      groups[0][2].should be_nil
+    end
+
+    it "raises error on zero size" do
+      expect_raises(ArgumentError, "Size must be positive") do
+        BasicModel.all.in_groups_of(0) { }
+      end
+    end
+
+    it "raises error on negative size" do
+      expect_raises(ArgumentError, "Size must be positive") do
+        BasicModel.all.in_groups_of(-5) { }
+      end
+    end
+
+    it "works with where clauses" do
+      groups = [] of Array(BasicModel | Nil)
+      BasicModel.where("age > ?", 5).in_groups_of(2) do |group|
+        groups << group
+      end
+
+      groups.size.should eq(2) # 4 records (6,7,8,9) / 2 = 2 groups
+      groups.all? { |g| g.all? { |item| item.nil? || item.as(BasicModel).age > 5 } }.should be_true
+    end
+
+    it "works with order clauses" do
+      groups = [] of Array(BasicModel | Nil)
+      BasicModel.order(age: :desc).in_groups_of(3) do |group|
+        groups << group
+      end
+
+      # First group should have highest ages
+      first_group = groups[0].compact
+      first_group.first.age.should eq(9)
+    end
+
+    it "reuses array when reuse is true" do
+      array_ids = [] of UInt64
+      BasicModel.all.in_groups_of(3, reuse: true) do |group|
+        array_ids << group.object_id
+      end
+
+      # All groups should use the same array object
+      array_ids.uniq.size.should eq(1)
+    end
+
+    it "creates new arrays when reuse is false" do
+      array_ids = [] of UInt64
+      BasicModel.all.in_groups_of(3, reuse: false) do |group|
+        array_ids << group.object_id
+      end
+
+      # Each group should be a different array object
+      array_ids.uniq.size.should eq(array_ids.size)
+    end
+  end
 end

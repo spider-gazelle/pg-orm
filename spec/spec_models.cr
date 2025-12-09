@@ -327,3 +327,12 @@ class CompositeKeys < PgORM::Base
   attribute key_two : String
   attribute payload : String
 end
+
+class Article < PgORM::Base
+  table :articles
+
+  attribute id : Int64
+  attribute title : String
+  attribute content : String?
+  attribute published : Bool = false
+end

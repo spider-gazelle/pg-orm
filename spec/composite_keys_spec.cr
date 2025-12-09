@@ -79,5 +79,60 @@ describe PgORM::Table do
         comp2.reload!
       end
     end
+
+    it "works with where clauses" do
+      comp1 = CompositeKeys.create!(key_one: "one", key_two: "two", payload: "test1")
+      comp2 = CompositeKeys.create!(key_one: "one", key_two: "three", payload: "test2")
+      comp3 = CompositeKeys.create!(key_one: "two", key_two: "two", payload: "test3")
+
+      results = CompositeKeys.where(key_one: "one").to_a
+      results.size.should eq(2)
+      results.all? { |r| r.key_one == "one" }.should be_true
+    end
+
+    it "works with order clauses" do
+      comp1 = CompositeKeys.create!(key_one: "c", key_two: "z", payload: "test1")
+      comp2 = CompositeKeys.create!(key_one: "a", key_two: "y", payload: "test2")
+      comp3 = CompositeKeys.create!(key_one: "b", key_two: "x", payload: "test3")
+
+      results = CompositeKeys.order(:key_one).to_a
+      results.size.should eq(3)
+      results[0].key_one.should eq("a")
+      results[1].key_one.should eq("b")
+      results[2].key_one.should eq("c")
+    end
+
+    it "works with limit and offset" do
+      5.times do |i|
+        CompositeKeys.create!(key_one: "key#{i}", key_two: "val#{i}", payload: "test#{i}")
+      end
+
+      results = CompositeKeys.limit(2).to_a
+      results.size.should eq(2)
+
+      offset_results = CompositeKeys.limit(2).offset(2).to_a
+      offset_results.size.should eq(2)
+      offset_results.map(&.key_one).should_not eq(results.map(&.key_one))
+    end
+
+    it "works with count" do
+      3.times do |i|
+        CompositeKeys.create!(key_one: "key#{i}", key_two: "val#{i}", payload: "test#{i}")
+      end
+
+      CompositeKeys.count.should eq(3)
+      CompositeKeys.where(key_one: "key1").count.should eq(1)
+    end
+
+    it "handles find with non-existent composite key" do
+      expect_raises(PgORM::Error::RecordNotFound) do
+        CompositeKeys.find!({"nonexistent", "key"})
+      end
+    end
+
+    it "handles find? with non-existent composite key" do
+      result = CompositeKeys.find?({"nonexistent", "key"})
+      result.should be_nil
+    end
   end
 end
