@@ -5,7 +5,7 @@ module PgORM
     module Methods(T)
       @builder : Builder?
 
-      private def builder
+      protected def builder
         @builder.not_nil!
       end
 
@@ -611,6 +611,154 @@ module PgORM
       def reorder!(**columns) : self
         builder.reorder!(**columns)
         self
+      end
+
+      # Performs full-text search using PostgreSQL's tsvector and tsquery
+      #
+      # ```
+      # Article.search("crystal & programming", :title, :content)
+      # ```
+      def search(search_query : FullTextSearch::SearchQuery) : self
+        dup builder.search(search_query)
+      end
+
+      # :nodoc:
+      def search!(search_query : FullTextSearch::SearchQuery) : self
+        builder.search!(search_query)
+        self
+      end
+
+      # Performs full-text search and orders by relevance rank
+      #
+      # ```
+      # Article.search_ranked("crystal programming", :title, :content)
+      # ```
+      def search_ranked(search_query : FullTextSearch::SearchQuery) : self
+        dup builder.search_ranked(search_query)
+      end
+
+      # Combines two query scopes with OR logic (ActiveRecord-style).
+      # Each scope's conditions are wrapped in parentheses and joined with OR.
+      #
+      # ```
+      # User.where(name: "John").or(User.where(name: "Jane"))
+      # # => SELECT * FROM "users" WHERE (name = 'John') OR (name = 'Jane')
+      #
+      # User.where(active: true).where(role: "admin")
+      #   .or(User.where(active: true).where(role: "moderator"))
+      # # => WHERE (active = true AND role = 'admin') OR (active = true AND role = 'moderator')
+      # ```
+      def or(other : self) : self
+        dup builder.or(other.builder)
+      end
+
+      # Pattern matching with LIKE operator (case-sensitive).
+      #
+      # ```
+      # User.where_like(:email, "%@example.com")
+      # # => SELECT * FROM "users" WHERE "email" LIKE '%@example.com'
+      #
+      # User.where_like(:name, "John%")
+      # # => SELECT * FROM "users" WHERE "name" LIKE 'John%'
+      # ```
+      def where_like(column : Symbol | String, pattern : String) : self
+        where("#{Database.quote(column)} LIKE ?", pattern)
+      end
+
+      # Pattern matching with ILIKE operator (case-insensitive, PostgreSQL-specific).
+      #
+      # ```
+      # User.where_ilike(:email, "%@EXAMPLE.com")
+      # # => SELECT * FROM "users" WHERE "email" ILIKE '%@EXAMPLE.com'
+      #
+      # Article.where_ilike(:domain, "%example%")
+      # # => SELECT * FROM "articles" WHERE "domain" ILIKE '%example%'
+      # ```
+      def where_ilike(column : Symbol | String, pattern : String) : self
+        where("#{Database.quote(column)} ILIKE ?", pattern)
+      end
+
+      # Negated pattern matching with NOT LIKE operator.
+      #
+      # ```
+      # User.where_not_like(:email, "%@spam.com")
+      # # => SELECT * FROM "users" WHERE "email" NOT LIKE '%@spam.com'
+      # ```
+      def where_not_like(column : Symbol | String, pattern : String) : self
+        where("#{Database.quote(column)} NOT LIKE ?", pattern)
+      end
+
+      # Negated pattern matching with NOT ILIKE operator.
+      #
+      # ```
+      # User.where_not_ilike(:email, "%@SPAM.com")
+      # # => SELECT * FROM "users" WHERE "email" NOT ILIKE '%@SPAM.com'
+      # ```
+      def where_not_ilike(column : Symbol | String, pattern : String) : self
+        where("#{Database.quote(column)} NOT ILIKE ?", pattern)
+      end
+
+      # Greater than comparison.
+      #
+      # ```
+      # User.where_gt(:age, 18)
+      # # => SELECT * FROM "users" WHERE "age" > 18
+      # ```
+      def where_gt(column : Symbol | String, value : Value) : self
+        where("#{Database.quote(column)} > ?", value)
+      end
+
+      # Greater than or equal comparison.
+      #
+      # ```
+      # User.where_gte(:age, 18)
+      # # => SELECT * FROM "users" WHERE "age" >= 18
+      # ```
+      def where_gte(column : Symbol | String, value : Value) : self
+        where("#{Database.quote(column)} >= ?", value)
+      end
+
+      # Less than comparison.
+      #
+      # ```
+      # User.where_lt(:age, 65)
+      # # => SELECT * FROM "users" WHERE "age" < 65
+      # ```
+      def where_lt(column : Symbol | String, value : Value) : self
+        where("#{Database.quote(column)} < ?", value)
+      end
+
+      # Less than or equal comparison.
+      #
+      # ```
+      # User.where_lte(:age, 65)
+      # # => SELECT * FROM "users" WHERE "age" <= 65
+      # ```
+      def where_lte(column : Symbol | String, value : Value) : self
+        where("#{Database.quote(column)} <= ?", value)
+      end
+
+      # BETWEEN range comparison.
+      #
+      # ```
+      # User.where_between(:age, 18, 65)
+      # # => SELECT * FROM "users" WHERE "age" BETWEEN 18 AND 65
+      #
+      # Article.where_between(:created_at, 1.week.ago, Time.utc)
+      # # => SELECT * FROM "articles" WHERE "created_at" BETWEEN '...' AND '...'
+      # ```
+      def where_between(column : Symbol | String, min : Value, max : Value) : self
+        where("#{Database.quote(column)} BETWEEN ? AND ?", min, max)
+      end
+
+      # NOT BETWEEN range comparison.
+      #
+      # ```
+      # User.where_not_between(:age, 18, 65)
+      # # => SELECT * FROM "users" WHERE "age" NOT BETWEEN 18 AND 65
+      # ```
+      def where_not_between(column : Symbol | String, min : Value, max : Value) : self
+        where("#{Database.quote(column)} NOT BETWEEN ? AND ?", min, max)
       end
 
       # Resets previously set SQL statement(s). For example:

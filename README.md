@@ -18,6 +18,29 @@ Extending [ActiveModel](https://github.com/spider-gazelle/active-model) for attr
   - [Validations](#validations)
     - [`ensure_unique`](#ensure_unique)
   - [Timestamps](#timestamps)
+  - [Query DSL Methods](#query-dsl-methods)
+    - [OR Queries](#or-queries)
+    - [Pattern Matching](#pattern-matching)
+    - [Comparison Operators](#comparison-operators)
+    - [Range Queries](#range-queries)
+    - [Combining Query Methods](#combining-query-methods-1)
+  - [Full-Text Search](#full-text-search)
+    - [Basic Search](#basic-search)
+    - [Ranked Search](#ranked-search)
+    - [Weighted Search](#weighted-search)
+    - [Advanced Search Methods](#advanced-search-methods)
+    - [Pre-computed tsvector Columns](#pre-computed-tsvector-columns)
+    - [Text Search Configuration](#text-search-configuration)
+    - [Combining with Query Methods](#combining-with-query-methods)
+    - [Query Optimization](#query-optimization)
+  - [Pagination](#pagination)
+    - [Page-based Pagination](#page-based-pagination)
+    - [Offset-based Pagination](#offset-based-pagination)
+    - [Cursor-based Pagination](#cursor-based-pagination)
+    - [Memory Efficiency](#memory-efficiency)
+    - [Pagination with Joins](#pagination-with-joins)
+    - [JSON Serialization](#json-serialization)
+    - [Pagination with Full-Text Search](#pagination-with-full-text-search)
   - [Join](#join)
   - [Installation](#installation)
   - [Usage](#usage)
@@ -137,9 +160,9 @@ end
 
 Set associations with `belongs_to`, `has_one`, and `has_many`.
 
-Access children in parent by accessing the method correpsonding to the name. 
+Access children in parent by accessing the method correpsonding to the name.
 
-> **Note:** The `has_many` association requires the `belongs_to` association on the child. 
+> **Note:** The `has_many` association requires the `belongs_to` association on the child.
 
 ```crystal
 class Parent < PgORM::Base
@@ -167,30 +190,29 @@ child.pets.to_a.empty? # => true
 
 ### `belongs_to`
 
-  This will add the following methods:
+This will add the following methods:
 
-  > **Note**: `association` below refers to the name parameter provided when defining this association, e.g `belongs_to :child` here `child` is the association name):
+> **Note**: `association` below refers to the name parameter provided when defining this association, e.g `belongs_to :child` here `child` is the association name):
 
-  * `association` returns the associated object (or nil);
-  * `association=` assigns the associated object, assigning the foreign key;
-  * `build_association` builds the associated object, assigning the foreign
-    key if the parent record is persisted, or delaying it to when the new
-    record is saved;
-  * `create_association` creates the associated object, assigning the foreign
-    key, granted that validation passed on the associated object;
-  * `create_association!` same as `create_association` but raises a
-    PgORM::Error::RecordNotSaved exception when validation fails;
-  * `reload_association` to reload the associated object.
+- `association` returns the associated object (or nil);
+- `association=` assigns the associated object, assigning the foreign key;
+- `build_association` builds the associated object, assigning the foreign
+  key if the parent record is persisted, or delaying it to when the new
+  record is saved;
+- `create_association` creates the associated object, assigning the foreign
+  key, granted that validation passed on the associated object;
+- `create_association!` same as `create_association` but raises a
+  PgORM::Error::RecordNotSaved exception when validation fails;
+- `reload_association` to reload the associated object.
 
-  For example a Child class declares `belongs_to :parent` which will add:
+For example a Child class declares `belongs_to :parent` which will add:
 
-  * `Child#parent` (similar to `Parent.find(parent_id)`)
-  * `Child#parent=(parent)` (similar to `child.parent_id = parent.id`)
-  * `Child#build_parent` (similar to child.parent = Parent.new)
-  * `Child#create_parent` (similar to child.parent = Parent.create)
-  * `Child#create_parent!` (similar to child.parent = Parent.create!)
-  * `Child#reload_parent` (force reload child.parent)
-
+- `Child#parent` (similar to `Parent.find(parent_id)`)
+- `Child#parent=(parent)` (similar to `child.parent_id = parent.id`)
+- `Child#build_parent` (similar to child.parent = Parent.new)
+- `Child#create_parent` (similar to child.parent = Parent.create)
+- `Child#create_parent!` (similar to child.parent = Parent.create!)
+- `Child#reload_parent` (force reload child.parent)
 
 | Parameter      |                                                                                                                                                                                                                                                                             | Default          |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
@@ -200,26 +222,26 @@ child.pets.to_a.empty? # => true
 | `autosave`     | Set auto save behavior. One of `nil`, `true`, `false` . Set `nil` (default) to only save newly built associations when the parent record is saved, `true` to always save the associations (new or already persisted), `false` to never save the associations automatically. | `nil`            |
 | `dependent`    | Sets destroy behaviour. One of `nil`, `:delete`, `:destroy`. Set `nil` when no deletion should occur. `:delete` to delete associated record in SQL, `:destroy` to call `#destroy` on the associated object.                                                                 | `nil`            |
 
-
 ### `has_one`
 
-  Declares a has one relationship.
+Declares a has one relationship.
 
-  This will add the following methods:
-  - `association` returns the associated object (or nil).
-  - `association=` assigns the associated object, assigning the
-    association's foreign key, then saving the association; permanently
-    deletes the previously associated object;
-  - `reload_association` to reload the associated object.
+This will add the following methods:
 
-  For example an Account class declares `has_one :supplier` which will add:
+- `association` returns the associated object (or nil).
+- `association=` assigns the associated object, assigning the
+  association's foreign key, then saving the association; permanently
+  deletes the previously associated object;
+- `reload_association` to reload the associated object.
 
-  - `Account#supplier` (similar to `Supplier.find_by(account_id: account.id)`)
-  - `Account#supplier=(supplier)` (similar to `supplier.account_id = account.id`)
-  - `Account#build_supplier`
-  - `Account#create_supplier`
-  - `Account#create_supplier!`
-  - `Account#reload_supplier`
+For example an Account class declares `has_one :supplier` which will add:
+
+- `Account#supplier` (similar to `Supplier.find_by(account_id: account.id)`)
+- `Account#supplier=(supplier)` (similar to `supplier.account_id = account.id`)
+- `Account#build_supplier`
+- `Account#create_supplier`
+- `Account#create_supplier!`
+- `Account#reload_supplier`
 
 | Parameter      |                                                                                                                                                                                                                                                                             | Default          |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
@@ -229,18 +251,17 @@ child.pets.to_a.empty? # => true
 | `autosave`     | Set auto save behavior. One of `nil`, `true`, `false` . Set `nil` (default) to only save newly built associations when the parent record is saved, `true` to always save the associations (new or already persisted), `false` to never save the associations automatically. | `nil`            |
 | `dependent`    | Sets destroy behaviour. One of `:nullify`, `:delete`, `:destroy`. Set `:nullify` to set the foreign key `nil` in SQL, `:delete` to delete associated record in SQL, `:destroy` to call `#destroy` on the associated object.                                                 | `:nullify`       |
 
-
 ### `has_many`
 
 Declares a has many relationship.
 
 This will add method
+
 - `association` returns `Relation` object of the associated object.
 
 For example a Parent class declares `has_many :children, class_name: Child` which will add:
 
 - `Parent#children : Relation(Child)` (similar to `child.find(parent_id)`)
-
 
 | Parameter      |                                                                                                                                                                                                                                                                             | Default            |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
@@ -254,7 +275,6 @@ For example a Parent class declares `has_many :children, class_name: Child` whic
 ### Dependency
 
 `dependent` param in the association definition macros defines the fate of the association on model destruction. Refer to descriptions in specific association for more details.
-
 
 ## Changefeeds
 
@@ -299,7 +319,7 @@ end
 spawn do
   Game.changes.each do |change|
     game = change.value
-    puts "#{game.type}: #{game.score}" 
+    puts "#{game.type}: #{game.score}"
     puts "game event: #{change.event}"
   end
 end
@@ -346,6 +366,7 @@ Below is a list of several Crystal type that shard maps to Postgres column types
 | Custom type        | JSONB                                   |
 
 Any of your columns can also define “nilable” types by adding Crystal Nil Union `?`. This is to let shard knows that your database table column allows for a NULL value.
+
 ## Validations
 
 Builds on [active-model's validation](https://github.com/spider-gazelle/active-model#validations)
@@ -364,10 +385,10 @@ The field(s) are set with the result of the transform block upon successful vali
 | `callback : T -> T` | Optional function to transform field value              | nil     |
 | `block : T -> T`    | Optional block to transform field value before querying | nil     |
 
-
 ## Timestamps
 
 Adds creates `created_at` and `updated_at` attributes.
+
 - `updated_at` is set through the `before_update` callback, and initially set in the `before_save` callback.
 - `created_at` is set through the `before_create` callback.
 
@@ -382,14 +403,444 @@ class Timo < PgORM::Base
 end
 ```
 
+## Query DSL Methods
+
+PgORM provides a comprehensive set of ActiveRecord-style query methods for building complex database queries.
+
+### OR Queries
+
+Combine two query scopes with OR logic (ActiveRecord-style):
+
+```crystal
+# Basic OR
+User.where(name: "John").or(User.where(name: "Jane"))
+# => WHERE (name = 'John') OR (name = 'Jane')
+
+# Complex OR with multiple conditions
+User.where(active: true, role: "admin")
+    .or(User.where(active: true, role: "moderator"))
+# => WHERE (active = true AND role = 'admin') OR (active = true AND role = 'moderator')
+
+# Chain with other query methods
+User.where(name: "Alice")
+    .or(User.where(name: "Bob"))
+    .order(:name)
+    .limit(10)
+```
+
+### Pattern Matching
+
+#### LIKE (Case-Sensitive)
+
+```crystal
+# Suffix match
+User.where_like(:email, "%@example.com")
+
+# Prefix match
+User.where_like(:name, "John%")
+
+# Contains
+Article.where_like(:domain, "%example%")
+
+# Negation
+User.where_not_like(:email, "%@spam.com")
+```
+
+#### ILIKE (Case-Insensitive)
+
+```crystal
+# Case-insensitive matching
+User.where_ilike(:email, "%@EXAMPLE.com")
+
+# Domain partial matching (solves the tsvector limitation)
+Article.where_ilike(:domain, "%example%")
+# Matches: "api.example.com", "example.org", "test.EXAMPLE.net"
+
+# Negation
+User.where_not_ilike(:name, "%test%")
+```
+
+### Comparison Operators
+
+```crystal
+# Greater than
+User.where_gt(:age, 18)
+
+# Greater than or equal
+User.where_gte(:age, 18)
+
+# Less than
+User.where_lt(:age, 65)
+
+# Less than or equal
+User.where_lte(:age, 65)
+
+# Chaining comparisons
+User.where_gte(:age, 18).where_lt(:age, 65)
+```
+
+### Range Queries
+
+```crystal
+# BETWEEN (inclusive)
+User.where_between(:age, 18, 65)
+# => WHERE age BETWEEN 18 AND 65
+
+# Works with Time values
+Article.where_between(:created_at, 1.week.ago, Time.utc)
+
+# NOT BETWEEN
+User.where_not_between(:age, 18, 65)
+```
+
+### Combining Query Methods
+
+All query methods can be chained together:
+
+```crystal
+# Complex query with multiple DSL methods
+Article.where(published: true)
+       .where_ilike(:domain, "%example%")
+       .where_gte(:views, 100)
+       .or(Article.where(featured: true))
+       .order(created_at: :desc)
+       .limit(20)
+
+# Pattern matching with OR
+User.where_like(:email, "%@gmail.com")
+    .or(User.where_like(:email, "%@yahoo.com"))
+
+# Range with other conditions
+Article.where(category: "tech")
+       .where_between(:created_at, 1.month.ago, Time.utc)
+       .where_gt(:views, 1000)
+```
+
+## Full-Text Search
+
+PgORM provides comprehensive full-text search capabilities using PostgreSQL's `tsvector` and `tsquery` features.
+
+### Basic Search
+
+Search across one or more columns using PostgreSQL's text search:
+
+```crystal
+class Article < PgORM::Base
+  attribute title : String
+  attribute content : String
+end
+
+# Basic search with symbols (developer-friendly)
+Article.search("crystal", :title, :content)
+
+# Basic search with strings
+Article.search("crystal", "title", "content")
+
+# Array of columns (e.g., from user selection)
+columns = ["title", "content"]
+Article.search("crystal", columns)
+
+# Boolean operators
+Article.search("crystal & programming", :title, :content)  # AND
+Article.search("crystal | ruby", :title, :content)         # OR
+Article.search("crystal & !ruby", :title, :content)        # NOT
+```
+
+### Ranked Search
+
+Order results by relevance using `ts_rank` or `ts_rank_cd`:
+
+```crystal
+# Basic ranking (ts_rank)
+Article.search_ranked("crystal programming", :title, :content)
+
+# Cover density ranking (ts_rank_cd)
+Article.search_ranked("crystal", :title,
+  rank_function: PgORM::FullTextSearch::RankFunction::RankCD)
+
+# Rank normalization (divide by document length)
+Article.search_ranked("crystal", :title, :content, rank_normalization: 1)
+```
+
+### Weighted Search
+
+Assign different weights to columns (A=1.0, B=0.4, C=0.2, D=0.1):
+
+```crystal
+# With symbols
+weights = {
+  :title   => PgORM::FullTextSearch::Weight::A,
+  :content => PgORM::FullTextSearch::Weight::B,
+}
+Article.search_weighted("crystal", weights)
+
+# With strings (useful for frontend input)
+weights = {
+  "title"   => PgORM::FullTextSearch::Weight::A,
+  "content" => PgORM::FullTextSearch::Weight::B,
+}
+Article.search_weighted("crystal", weights)
+
+# Weighted search with ranking
+Article.search_ranked_weighted("crystal", weights)
+```
+
+### Advanced Search Methods
+
+```crystal
+# Phrase search (exact phrase matching)
+Article.search_phrase("crystal programming language", :content)
+
+# Proximity search (words within N positions)
+Article.search_proximity("crystal", "programming", 5, :content)
+
+# Prefix search (matches crystal, crystalline, etc.)
+Article.search_prefix("cryst", :title, :content)
+
+# Plain text search (automatically converts to tsquery)
+Article.search_plain("crystal programming", :title, :content)
+```
+
+### Pre-computed tsvector Columns
+
+For production use, create a `tsvector` column with a GIN index for better performance:
+
+```sql
+-- Add tsvector column
+ALTER TABLE articles ADD COLUMN search_vector tsvector;
+
+-- Create GIN index
+CREATE INDEX articles_search_idx ON articles USING GIN(search_vector);
+
+-- Auto-update trigger
+CREATE TRIGGER articles_search_update
+  BEFORE INSERT OR UPDATE ON articles
+  FOR EACH ROW EXECUTE FUNCTION
+  tsvector_update_trigger(search_vector, 'pg_catalog.english', title, content);
+```
+
+Then search using the pre-computed column:
+
+```crystal
+# Basic search on tsvector column (symbol or string)
+Article.search_vector("crystal & programming", :search_vector)
+Article.search_vector("crystal & programming", "search_vector")
+
+# Ranked search on tsvector column
+Article.search_vector_ranked("crystal", :search_vector)
+
+# Plain text search on tsvector column
+Article.search_vector_plain("crystal programming", :search_vector)
+```
+
+### Text Search Configuration
+
+Specify language configuration for stemming and stop words:
+
+```crystal
+# English (default)
+Article.search("running", :content, config: "english")  # matches "run", "runs"
+
+# Simple (no stemming)
+Article.search("running", :content, config: "simple")   # exact match only
+```
+
+### Combining with Query Methods
+
+Full-text search integrates seamlessly with other query methods:
+
+```crystal
+Article
+  .where(published: true)
+  .search("crystal", :title, :content)
+  .limit(10)
+  .order(:created_at)
+```
+
+### Query Optimization
+
+Use the `explain` method to analyze query performance:
+
+```crystal
+query = Article.search_ranked("crystal", :title, :content)
+puts query.explain  # Shows PostgreSQL query execution plan
+```
+
+## Pagination
+
+PgORM provides comprehensive pagination support with three strategies: page-based, offset-based, and cursor-based pagination. All pagination methods use lazy loading to minimize memory usage.
+
+### Page-based Pagination
+
+Standard page number pagination with complete metadata:
+
+```crystal
+# Basic pagination
+result = Article.where(published: true).paginate(page: 2, limit: 20)
+
+# Access metadata (no records loaded yet)
+result.total        # => 150
+result.page         # => 2
+result.total_pages  # => 8
+result.has_next?    # => true
+result.has_prev?    # => true
+result.next_page    # => 3
+result.prev_page    # => 1
+result.from         # => 21
+result.to           # => 40
+
+# Load records (lazy - only loaded when accessed)
+articles = result.records
+
+# Works with all query methods
+Article.where(published: true)
+  .order(created_at: :desc)
+  .paginate(page: 1, limit: 10)
+```
+
+### Offset-based Pagination
+
+Direct control over offset and limit:
+
+```crystal
+# Paginate with offset
+result = Article.paginate_by_offset(offset: 40, limit: 20)
+
+result.offset  # => 40
+result.limit   # => 20
+result.page    # => 3 (calculated as offset / limit + 1)
+```
+
+### Cursor-based Pagination
+
+Efficient pagination for large datasets using cursor-based navigation:
+
+```crystal
+# First page
+result = Article.order(:id).paginate_cursor(limit: 20)
+
+result.records       # => Array of 20 articles
+result.has_next?     # => true
+result.next_cursor   # => "123" (ID of last record)
+
+# Next page using cursor
+next_result = Article.order(:id)
+  .paginate_cursor(after: result.next_cursor, limit: 20)
+
+# Previous page using cursor
+prev_result = Article.order(:id)
+  .paginate_cursor(before: next_result.prev_cursor, limit: 20)
+
+# Custom cursor column
+Article.order(:created_at)
+  .paginate_cursor(after: cursor, limit: 20, cursor_column: :created_at)
+```
+
+### Memory Efficiency
+
+Pagination uses lazy loading to minimize memory usage:
+
+```crystal
+# Create pagination result (only metadata loaded, ~200 bytes)
+result = Article.paginate(page: 1, limit: 1000)
+
+# Check metadata without loading records
+if result.total_pages >= 5
+  # Records only loaded when accessed
+  articles = result.records
+end
+
+# Stream records without loading all into memory
+result.each do |article|
+  process(article)  # Process one at a time
+end
+```
+
+### Pagination with Joins
+
+Automatically handles joined queries with correct counting:
+
+```crystal
+# Correctly counts distinct records in joins
+result = Author.join(:left, Book, :author_id)
+  .where("books.published = ?", true)
+  .paginate(page: 1, limit: 10)
+
+# Uses COUNT(DISTINCT authors.id) to avoid duplicate counts
+result.total  # => 25 (distinct authors, not total join results)
+```
+
+### JSON Serialization
+
+Pagination results include complete metadata in JSON:
+
+```crystal
+result = Article.where(published: true).paginate(page: 2, limit: 10)
+
+result.to_json
+# {
+#   "data": [...],
+#   "pagination": {
+#     "total": 150,
+#     "limit": 10,
+#     "offset": 10,
+#     "page": 2,
+#     "total_pages": 15,
+#     "has_next": true,
+#     "has_prev": true,
+#     "next_page": 3,
+#     "prev_page": 1,
+#     "from": 11,
+#     "to": 20
+#   }
+# }
+```
+
+Cursor pagination JSON:
+
+```crystal
+result = Article.order(:id).paginate_cursor(limit: 10)
+
+result.to_json
+# {
+#   "data": [...],
+#   "pagination": {
+#     "limit": 10,
+#     "has_next": true,
+#     "has_prev": false,
+#     "next_cursor": "123",
+#     "prev_cursor": null
+#   }
+# }
+```
+
+### Pagination with Full-Text Search
+
+Pagination works seamlessly with all search methods:
+
+```crystal
+# Paginate search results
+Article.search("crystal", :title, :content)
+  .paginate(page: 1, limit: 20)
+
+# Paginate ranked search
+Article.search_ranked("crystal programming", :title, :content)
+  .paginate(page: 1, limit: 20)
+
+# Paginate with filters
+Article.where(published: true)
+  .search("crystal", :title, :content)
+  .paginate(page: 1, limit: 20)
+```
+
 ## Join
 
 Supports:
 
-* **INNER JOIN**: Returns records that have matching values in both tables
-* **LEFT JOIN**: Returns all records from the left table, and the matched records from the right table
-* **RIGHT JOIN**: Returns all records from the right table, and the matched records from the left table
-* **FULL JOIN**: Returns all records when there is a match in either left or right table
+- **INNER JOIN**: Returns records that have matching values in both tables
+- **LEFT JOIN**: Returns all records from the left table, and the matched records from the right table
+- **RIGHT JOIN**: Returns all records from the right table, and the matched records from the left table
+- **FULL JOIN**: Returns all records when there is a match in either left or right table
 
 When a join SQL is performed, model associated records will be cached and accessing linked relations will use the cached result instead of hitting the database.
 
@@ -489,7 +940,9 @@ $ shards build
 Using script from [Benchmark different ORMs for crystal and postgres](https://github.com/jwoertink/crystal_orm_test) , modified to add `PgORM` to the suite.
 
 ### Results
+
 Specs:
+
 ```
 Machine: Apple MBP M1 Max 32GB RAM
 OS: macOS 15.2

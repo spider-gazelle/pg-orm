@@ -42,8 +42,26 @@ module PgORM
       end
     end
 
+    struct FullTextSearchCondition
+      getter search_query : FullTextSearch::SearchQuery
+
+      def initialize(@search_query : FullTextSearch::SearchQuery)
+      end
+
+      # Convenience accessors for backward compatibility
+      delegate query, columns, config, rank_normalization, to: @search_query
+    end
+
+    struct OrCondition
+      getter left_conditions : Conditions
+      getter right_conditions : Conditions
+
+      def initialize(@left_conditions : Conditions, @right_conditions : Conditions)
+      end
+    end
+
     alias Selects = Array(Symbol | String)
-    alias Conditions = Array(Condition | RawCondition)
+    alias Conditions = Array(Condition | RawCondition | FullTextSearchCondition | OrCondition)
     alias Orders = Array({Symbol, Symbol} | String)
     alias Joins = Array({JoinType, String, String, String} | {JoinType, String, String})
     alias Groups = Array(Symbol | String)
@@ -57,6 +75,7 @@ module PgORM
     property groups : Groups?
     property limit : Int32 = -1
     property offset : Int32 = -1
+    property fts_rank_column : String?
 
     def initialize(@table_name, @primary_key = "")
       @distinct = false
@@ -350,6 +369,47 @@ module PgORM
     def reorder!(**columns) : self
       @orders.try(&.clear)
       order!(**columns)
+    end
+
+    def search(search_query : FullTextSearch::SearchQuery) : self
+      builder = dup
+      builder.conditions = @conditions.dup
+      builder.search!(search_query)
+    end
+
+    def search!(search_query : FullTextSearch::SearchQuery) : self
+      actual = @conditions ||= Conditions.new
+      actual << FullTextSearchCondition.new(search_query)
+      self
+    end
+
+    def search_ranked(search_query : FullTextSearch::SearchQuery) : self
+      builder = search(search_query)
+      builder.fts_rank_column = "ts_rank"
+
+      # Add rank to select if not already selecting specific columns
+      if builder.selects?
+        builder.select!("ts_rank")
+      end
+
+      # Order by rank descending
+      builder.order!("ts_rank DESC")
+      builder
+    end
+
+    def or(other : Builder) : self
+      builder = dup
+
+      # Get current and other conditions
+      left = @conditions || Conditions.new
+      right = other.conditions? || Conditions.new
+
+      # Create new conditions array with OrCondition
+      new_conditions = Conditions.new
+      new_conditions << OrCondition.new(left, right)
+      builder.conditions = new_conditions
+
+      builder
     end
 
     def unscope(*args : Symbol) : self

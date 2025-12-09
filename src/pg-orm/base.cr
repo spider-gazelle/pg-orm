@@ -10,6 +10,8 @@ require "./query"
 require "./table"
 require "./errors"
 require "./validators/*"
+require "./full_text_search"
+require "./pagination"
 
 module PgORM
   abstract class Base < ActiveModel::Model
@@ -22,6 +24,7 @@ module PgORM
     include Table
     include Validators
     extend ChangeReceiver
+    extend FullTextSearch
 
     Log    = ::Log.for(self)
     TABLES = [] of String

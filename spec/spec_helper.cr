@@ -39,6 +39,7 @@ Spec.before_suite do
     db.exec "DROP TABLE IF EXISTS enums"
     db.exec "DROP TABLE IF EXISTS compute"
     db.exec "DROP TABLE IF EXISTS composite_keys"
+    db.exec "DROP TABLE IF EXISTS articles"
     db.exec <<-SQL
     CREATE TABLE groups (
       id SERIAL NOT NULL PRIMARY KEY,
@@ -178,6 +179,15 @@ Spec.before_suite do
     db.exec <<-SQL
       INSERT INTO arrtest(arr2) values('{"three","four"}');
     SQL
+
+    db.exec <<-SQL
+    CREATE TABLE articles (
+      id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      title VARCHAR NOT NULL,
+      content TEXT,
+      published BOOLEAN NOT NULL DEFAULT false
+    );
+    SQL
   end
 
   1.upto(2) do |_|
@@ -207,5 +217,6 @@ Spec.after_suite do
     db.exec "DROP TABLE IF EXISTS compute"
     db.exec "DROP TABLE IF EXISTS arrtest"
     db.exec "DROP TABLE IF EXISTS composite_keys"
+    db.exec "DROP TABLE IF EXISTS articles"
   end
 end

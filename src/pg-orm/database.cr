@@ -8,6 +8,65 @@ require "./changefeed"
 require "./errors"
 
 module PgORM::Database
+  # Database connection management and query execution.
+  #
+  # This module handles:
+  # - Connection pooling
+  # - Transaction management (including nested transactions)
+  # - Fiber-local connection storage for thread safety
+  # - Change data capture (CDC) for real-time notifications
+  # - Database introspection
+  #
+  # ## Configuration
+  #
+  # ```
+  # # Configure database settings
+  # PgORM::Database.configure do |settings|
+  #   settings.host = "localhost"
+  #   settings.port = 5432
+  #   settings.db = "myapp_production"
+  #   settings.user = "app_user"
+  #   settings.password = "secret"
+  # end
+  #
+  # # Or parse a connection URL
+  # PgORM::Database.parse(ENV["DATABASE_URL"])
+  # ```
+  #
+  # ## Connection Management
+  #
+  # The ORM automatically manages connections for you. However, you can
+  # manually control connections if needed:
+  #
+  # ```
+  # # Automatic connection management (recommended)
+  # User.where(active: true).to_a
+  #
+  # # Manual connection management (advanced)
+  # PgORM::Database.with_connection do |db|
+  #   db.query("SELECT * FROM users") do |rs|
+  #     # Process results
+  #   end
+  # end
+  # ```
+  #
+  # ## Transactions
+  #
+  # ```
+  # # Simple transaction
+  # PgORM::Database.transaction do |tx|
+  #   user.save!
+  #   account.save!
+  # end
+  #
+  # # Nested transactions (uses savepoints)
+  # PgORM::Database.transaction do
+  #   user.save!
+  #   PgORM::Database.transaction do
+  #     account.save! # Savepoint
+  #   end
+  # end
+  # ```
   extend Settings
 
   @@pool : DB::Database?
@@ -15,6 +74,21 @@ module PgORM::Database
   @@transactions = {} of UInt64 => DB::Transaction
   @@info : Info?
 
+  # Configures database connection settings.
+  #
+  # This also enables change data capture (CDC) for real-time notifications.
+  #
+  # ## Example
+  #
+  # ```
+  # PgORM::Database.configure do |settings|
+  #   settings.host = "db.example.com"
+  #   settings.port = 5432
+  #   settings.db = "production"
+  #   settings.user = "app_user"
+  #   settings.password = ENV["DB_PASSWORD"]
+  # end
+  # ```
   def self.configure(&) : Nil
     Settings.configure do |settings|
       yield settings
@@ -22,7 +96,20 @@ module PgORM::Database
     enable_cdc
   end
 
-  # Parse a postgres connection string URL. This may come from an environment variable.
+  # Parses a PostgreSQL connection URL and configures the database.
+  #
+  # This is the recommended way to configure the database in production,
+  # typically from an environment variable.
+  #
+  # ## Example
+  #
+  # ```
+  # # From environment variable
+  # PgORM::Database.parse(ENV["DATABASE_URL"])
+  #
+  # # Direct URL
+  # PgORM::Database.parse("postgres://user:pass@localhost:5432/mydb")
+  # ```
   def self.parse(uri : String | URI) : Nil
     Settings.parse(uri)
     enable_cdc
@@ -244,16 +331,16 @@ module PgORM::Database
 
     @[JSON::Field(ignore: true)]
     @[YAML::Field(ignore: true)]
-    property table_catalog : String
+    property table_catalog : String = ""
     @[JSON::Field(ignore: true)]
     @[YAML::Field(ignore: true)]
-    property table_schema : String
+    property table_schema : String = ""
     @[JSON::Field(ignore: true)]
     @[YAML::Field(ignore: true)]
-    property table_name : String
+    property table_name : String = ""
     @[JSON::Field(ignore: true)]
     @[YAML::Field(ignore: true)]
-    property table_type : String
+    property table_type : String = ""
     property column_name : String
     property is_nullable : String
     property column_default : String?
