@@ -1,6 +1,8 @@
 require "./spec_helper"
 
 describe PgORM::ChangeFeedHandler do
+  before_each { reset_models_cdc }
+
   it "should receive changes on a single table record" do
     base = BasicModel.create!(name: "cdc-test")
     chan = Channel(Nil).new

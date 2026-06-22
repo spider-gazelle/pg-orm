@@ -70,6 +70,7 @@ module PgORM::Database
   extend Settings
 
   @@pool : DB::Database?
+  @@read_pool : DB::Database?
   @@connections = {} of UInt64 => DB::Connection
   @@transactions = {} of UInt64 => DB::Transaction
   @@info : Info?
@@ -115,6 +116,30 @@ module PgORM::Database
     enable_cdc
   end
 
+  # Configures an optional read-only replica connection.
+  #
+  # When configured, standalone read queries (SELECTs issued outside of a
+  # transaction or an explicit `with_connection` block) are routed to the
+  # replica, while all writes — and any reads inside a transaction — continue to
+  # use the primary. Pass `nil` to disable replica routing.
+  #
+  # CDC/change-feed and advisory locks are intentionally NOT moved to the
+  # replica; they must run against the primary.
+  #
+  # ## Example
+  #
+  # ```
+  # PgORM::Database.parse_read(ENV["PG_DATABASE_READ_URL"]?)
+  # ```
+  def self.parse_read(uri : String | URI | Nil) : Nil
+    Settings.parse_read(uri)
+    # Reset any previously-opened replica pool so the new URL takes effect.
+    if pool = @@read_pool
+      @@read_pool = nil
+      pool.close
+    end
+  end
+
   def self.adapter(builder : Query::Builder) : PostgreSQL
     PostgreSQL.new(builder)
   end
@@ -135,6 +160,14 @@ module PgORM::Database
 
   def self.pool : DB::Database
     @@pool ||= DB.open(Settings.to_uri)
+  end
+
+  # The read-only replica connection pool, or `nil` when no replica is
+  # configured. Lazily opened on first use.
+  def self.read_pool? : DB::Database?
+    if read_uri = Settings.read_uri?
+      @@read_pool ||= DB.open(read_uri)
+    end
   end
 
   def self.checkout : DB::Connection
@@ -160,9 +193,20 @@ module PgORM::Database
     end
   end
 
-  def self.connection(&)
+  # Yields a database connection.
+  #
+  # Routing rules:
+  # - If the current fiber already holds a pinned connection (i.e. we are inside
+  #   a transaction or an explicit `with_connection` block), that connection is
+  #   reused — guaranteeing read-your-writes consistency.
+  # - Otherwise, when `read` is `true` and a replica pool is configured, the
+  #   query is routed to the read-only replica.
+  # - Otherwise the primary pool is used.
+  def self.connection(read : Bool = false, &)
     if db = @@connections[object_id]?
       yield db
+    elsif read && (read_pool = read_pool?)
+      read_pool.using_connection { |db_| yield db_ }
     else
       pool.using_connection { |db_| yield db_ }
     end

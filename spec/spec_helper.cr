@@ -20,6 +20,32 @@ def group_id
   Helper.group_id
 end
 
+# Name of the per-table CDC trigger installed by the eventbus shard.
+CDC_TRIGGER_NAME = "eventbus_notify_change_event"
+
+# Resets the CDC pipeline for the shared `models` table between changefeed
+# examples.
+#
+# The eventbus CDC trigger is "shared infrastructure" that `disable_cdc_for`
+# deliberately leaves in place, so once any example installs it every subsequent
+# write to `models` keeps emitting notifications on the shared `cdc_events`
+# channel — gated only by the registered listener at dispatch time. Without a
+# reset between examples this leaks two ways:
+#   * rows created in one example (e.g. after `stop`) stay buffered and are
+#     delivered to the next example's freshly-registered listener, and
+#   * rows created in an example *before* it calls `changes` still notify
+#     (the trigger is already installed), so the new listener receives them.
+#
+# Dropping the trigger here means setup writes that precede an example's
+# `changes` call don't notify, and the short settle lets the listener fiber
+# consume and discard anything still buffered while no listener is registered.
+def reset_models_cdc
+  SpecConnection.exec_sql("DROP TRIGGER IF EXISTS #{CDC_TRIGGER_NAME} ON models")
+  BasicModel.truncate
+  5.times { Fiber.yield }
+  sleep 0.1.seconds
+end
+
 Spec.before_suite do
   SpecConnection.parse(ENV["PG_DATABASE_URL"])
 

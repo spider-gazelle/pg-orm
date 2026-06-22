@@ -275,7 +275,7 @@ module PgORM
       explain_sql = "EXPLAIN ANALYZE #{sql}"
 
       result = [] of String
-      PgORM::Database.connection do |db|
+      PgORM::Database.connection(read: true) do |db|
         db.query(explain_sql, args: args) do |rs|
           rs.each do
             result << rs.read(String)

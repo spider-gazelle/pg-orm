@@ -33,7 +33,7 @@ module PgORM
     def select_one(&)
       return if @builder.none?
       sql, args = select_sql
-      Database.connection &.query_one?(sql, args: args) { |rs| yield rs }
+      Database.connection(read: true, &.query_one?(sql, args: args) { |rs| yield rs })
     end
 
     def select_all(& : DB::ResultSet -> U) : Array(U) forall U
@@ -41,19 +41,19 @@ module PgORM
         Array(U).new(0)
       else
         sql, args = select_sql
-        Database.connection &.query_all(sql, args: args) { |rs| yield rs }
+        Database.connection(read: true, &.query_all(sql, args: args) { |rs| yield rs })
       end
     end
 
     def select_each(&) : Nil
       return if @builder.none?
       sql, args = select_sql
-      Database.connection &.query_each(sql, args: args) { |rs| yield rs }
+      Database.connection(read: true, &.query_each(sql, args: args) { |rs| yield rs })
     end
 
     def scalar
       sql, args = select_sql
-      Database.connection &.scalar(sql, args: args)
+      Database.connection(read: true, &.scalar(sql, args: args))
     end
 
     def update(attributes : Hash | NamedTuple) : Nil

@@ -1,6 +1,8 @@
 require "./spec_helper"
 
 describe PgORM::ChangeFeedHandler do
+  before_each { reset_models_cdc }
+
   describe "Error Handling" do
     it "processes changefeed events correctly" do
       base = BasicModel.create!(name: "event-test")

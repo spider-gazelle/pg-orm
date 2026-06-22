@@ -42,7 +42,7 @@ module PgORM
 
       private def query
         sql, args = Database.adapter(@builder).select_sql
-        Database.connection(&.query(sql, args: args))
+        Database.connection(read: true, &.query(sql, args: args))
       end
     end
   end

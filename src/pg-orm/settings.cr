@@ -35,6 +35,13 @@ module PgORM
   module Settings
     @@url : String?
 
+    # Optional read-only replica connection URL. When set, standalone read
+    # queries (SELECTs that are not inside a transaction or an explicit
+    # `with_connection` block) are routed here, while all writes continue to use
+    # the primary connection. Sourced from the `PG_DATABASE_READ_URL`
+    # environment variable by default; unset means "no replica, use primary".
+    @@read_url : String? = ENV["PG_DATABASE_READ_URL"]?
+
     Habitat.create do
       setting host : String = ENV["PG_HOST"]? || "localhost"
       setting port : Int32 = (ENV["PG_PORT"]? || 5432).to_i
@@ -97,6 +104,29 @@ module PgORM
         settings.password = uri.password || ""
         settings.query = uri.query || ""
       end
+    end
+
+    # The configured read-only replica connection URL, or `nil` when no replica
+    # is configured (in which case reads use the primary connection).
+    def self.read_uri? : String?
+      @@read_url
+    end
+
+    # Configures the read-only replica connection from a URL. Pass `nil` to
+    # disable replica routing and send all reads to the primary.
+    #
+    # ## Example
+    #
+    # ```
+    # PgORM::Settings.parse_read(ENV["PG_DATABASE_READ_URL"]?)
+    # ```
+    def self.parse_read(uri : String | URI | Nil)
+      @@read_url =
+        case uri
+        in Nil    then nil
+        in URI    then uri.to_s
+        in String then uri.blank? ? nil : URI.parse(uri).to_s
+        end
     end
   end
 end

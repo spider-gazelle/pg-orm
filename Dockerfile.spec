@@ -1,4 +1,4 @@
-ARG CRYSTAL_VERSION=1.5.0
+ARG CRYSTAL_VERSION=1.19.1
 FROM 84codes/crystal:${CRYSTAL_VERSION}-alpine
 
 # Create a temporary folder to hold the files
