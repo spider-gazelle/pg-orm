@@ -53,7 +53,7 @@ module PgORM
     #
     # Returns an array of model instances.
     def find_all_by_sql(sql : String, *args_, args : Array? = nil) : Array(self)
-      Database.connection &.query_all(sql, *args_, args: args) { |rs| new(rs) }
+      Database.connection(read: true, &.query_all(sql, *args_, args: args) { |rs| new(rs) })
     end
 
     # Loads one record by raw SQL query with parameter binding.
@@ -72,7 +72,7 @@ module PgORM
     #
     # Raises `Error::RecordNotFound` if no record is found.
     def find_one_by_sql(sql : String, *args_, args : Array? = nil) : self
-      Database.connection &.query_one?(sql, *args_, args: args) { |rs| new(rs) } || raise Error::RecordNotFound.new
+      Database.connection(read: true, &.query_one?(sql, *args_, args: args) { |rs| new(rs) }) || raise Error::RecordNotFound.new
     end
 
     # Same as `#find_one_by_sql` but returns `nil` when no record is found
@@ -93,7 +93,7 @@ module PgORM
     # end
     # ```
     def find_one_by_sql?(sql : String, *args_, args : Array? = nil) : self?
-      Database.connection &.query_one?(sql, *args_, args: args) { |rs| new(rs) }
+      Database.connection(read: true, &.query_one?(sql, *args_, args: args) { |rs| new(rs) })
     end
 
     # Returns a collection that will never return any records.
