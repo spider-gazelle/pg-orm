@@ -79,7 +79,6 @@ entry fronting one or more PostgreSQL read replicas). Configure it with a single
 connection URL:
 
 ```crystal
-# Sourced from PG_DATABASE_READ_URL by default; pass nil to disable.
 PgORM::Database.parse_read(ENV["PG_DATABASE_READ_URL"]?)
 ```
 

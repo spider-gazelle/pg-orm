@@ -38,9 +38,8 @@ module PgORM
     # Optional read-only replica connection URL. When set, standalone read
     # queries (SELECTs that are not inside a transaction or an explicit
     # `with_connection` block) are routed here, while all writes continue to use
-    # the primary connection. Sourced from the `PG_DATABASE_READ_URL`
-    # environment variable by default; unset means "no replica, use primary".
-    @@read_url : String? = ENV["PG_DATABASE_READ_URL"]?
+    # the primary connection.
+    @@read_url : String? = nil
 
     Habitat.create do
       setting host : String = ENV["PG_HOST"]? || "localhost"
