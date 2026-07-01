@@ -43,11 +43,13 @@ module PgORM
 
     Habitat.create do
       setting host : String = ENV["PG_HOST"]? || "localhost"
+      setting host_read_only : String? = ENV["PG_RO_HOST"]?
       setting port : Int32 = (ENV["PG_PORT"]? || 5432).to_i
       setting db : String = ENV["PG_DB"]? || ENV["PG_DATABASE"]? || "test"
       setting user : String = ENV["PG_USER"]? || "postgres"
       setting password : String = ENV["PG_PASSWORD"]? || ""
       setting query : String = ENV["PG_QUERY"]? || ""
+      setting query_read_only : String = ENV["PG_RO_QUERY"]? || ENV["PG_QUERY"]? || ""
       setting lock_timeout : Time::Span = (ENV["PG_LOCK_TIMEOUT"]? || 5).to_i.seconds
     end
 
@@ -62,7 +64,24 @@ module PgORM
     # # => "postgres://user:pass@localhost:5432/mydb"
     # ```
     def self.to_uri : String
-      @@url ||= String.build do |sb|
+      if url = @@url
+        return url
+      end
+
+      if ro_host = settings.host_read_only
+        @@read_url = String.build do |sb|
+          sb << "postgres://"
+          sb << URI.encode_www_form(settings.user) unless settings.user.blank?
+          sb << ":#{URI.encode_www_form(settings.password)}" unless settings.password.blank?
+          sb << "@" unless settings.user.blank?
+          sb << ro_host << ":" << settings.port
+          sb << "/" unless settings.db.starts_with?("/")
+          sb << settings.db
+          sb << "?#{settings.query_read_only}" unless settings.query_read_only.blank?
+        end
+      end
+
+      @@url = String.build do |sb|
         sb << "postgres://"
         sb << URI.encode_www_form(settings.user) unless settings.user.blank?
         sb << ":#{URI.encode_www_form(settings.password)}" unless settings.password.blank?
