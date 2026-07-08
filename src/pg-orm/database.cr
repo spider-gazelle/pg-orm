@@ -175,10 +175,19 @@ module PgORM::Database
   end
 
   def self.release : Nil
-    @@connections.delete(object_id).try(&.release)
-    if tx = @@transactions.delete(object_id)
-      tx.rollback unless tx.closed?
+    conn = @@connections.delete(object_id)
+    # Roll back a leftover (manually opened) transaction *before* the connection
+    # goes back to the pool. If that rollback raises, the connection's
+    # transaction state can no longer be trusted, so discard it rather than let
+    # the pool reuse it — see `discard_on_failure`.
+    if (tx = @@transactions.delete(object_id)) && !tx.closed?
+      begin
+        tx.rollback
+      rescue
+        conn.try { |c| c.close unless c.closed? }
+      end
     end
+    conn.try(&.release)
   end
 
   def self.with_connection(&)
@@ -242,10 +251,10 @@ module PgORM::Database
     begin
       yield tx
     rescue ex
-      tx.rollback unless tx.closed?
+      rollback(tx)
       raise ex unless ex.is_a?(DB::Rollback)
     else
-      tx.commit unless tx.closed?
+      commit(tx)
     ensure
       case tx
       when DB::TopLevelTransaction
@@ -256,6 +265,45 @@ module PgORM::Database
         raise "unsupported transaction type: #{tx.class.name}"
       end
     end
+  end
+
+  # Commits *tx*, re-raising on failure. crystal-db issues the `COMMIT` statement
+  # *before* it clears the connection's transaction flag, so a `COMMIT` that
+  # raises — e.g. a serialization failure deferred to commit under `SERIALIZABLE`
+  # isolation, or a `DEFERRED` constraint violation — leaves the pinned
+  # connection still flagged "in transaction". Left as-is it is handed back to
+  # the pool poisoned, and the next checkout raises "There is an existing
+  # transaction in this connection". Discarding the connection prevents that.
+  private def self.commit(tx : DB::Transaction) : Nil
+    return if tx.closed?
+    tx.commit
+  rescue ex
+    discard_on_failure(tx)
+    raise ex
+  end
+
+  # Rolls back *tx* on a best-effort basis. Never raises: the caller is already
+  # unwinding an earlier exception that must be preserved. A `ROLLBACK` that
+  # raises leaves the connection in the same untrusted state as a failed
+  # `COMMIT`, so the connection is discarded here too.
+  private def self.rollback(tx : DB::Transaction) : Nil
+    return if tx.closed?
+    tx.rollback
+  rescue
+    discard_on_failure(tx)
+  end
+
+  # Closes the top-level transaction's underlying connection after a failed
+  # commit/rollback, so the pool drops it instead of reusing a connection whose
+  # server-side transaction state can no longer be trusted. Savepoint failures
+  # are ignored here: they propagate and are resolved when the enclosing
+  # top-level transaction unwinds.
+  private def self.discard_on_failure(tx : DB::Transaction) : Nil
+    return unless tx.is_a?(DB::TopLevelTransaction)
+    conn = tx.connection
+    conn.close unless conn.closed?
+  rescue
+    # best effort — never mask the original transaction failure
   end
 
   @@cdc : ChangeFeedHandler?
