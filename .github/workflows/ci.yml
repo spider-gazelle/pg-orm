@@ -36,13 +36,44 @@ jobs:
         uses: crystal-lang/install-crystal@v1
         with:
           crystal: ${{ matrix.crystal }}
+      # Skip the linter's build so it cannot take the tests down with it.
+      # ameba's postinstall builds its binary, and 1.6.4 does not compile on
+      # current Crystal — so this step failed before a single spec ran.
+      # --skip-executables as well, or shards then fails trying to copy the
+      # binary that was never built. Lint has its own job now, on a Crystal it
+      # supports.
       - name: Install shards
-        run: shards install --ignore-crystal-version
-      - name: Lint
-        run: ./bin/ameba
+        run: shards install --ignore-crystal-version --skip-postinstall --skip-executables
       - name: Format
         run: crystal tool format --check
       - name: Run tests
         run: crystal spec -v --error-trace
         env:
           PG_DATABASE_URL: postgresql://postgres:password@localhost:5432/pgorm_spec
+
+  # Lint runs separately, and on a pinned Crystal.
+  #
+  # ameba 1.6.4 (the current release) calls `Crystal::Lexer#next_string_array_token`,
+  # which newer compilers no longer expose, so it cannot be built on `latest`.
+  # 1.7.0-dev does build, but adds rules that flag ~300 existing lines — mostly
+  # whitespace inside macro expressions, plus heredoc indentation that changes
+  # string contents. Worth doing, as its own reviewed change rather than folded
+  # into a CI fix.
+  #
+  # Pinning here keeps a real lint signal without holding the test matrix back
+  # from `latest`. Drop the pin once ameba 1.7 ships stable and its findings
+  # have been dealt with.
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download source
+        uses: actions/checkout@v2
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
+        with:
+          crystal: 1.16.3
+      - name: Install shards
+        run: shards install --ignore-crystal-version
+      - name: Lint
+        run: ./bin/ameba
