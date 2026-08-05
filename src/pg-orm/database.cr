@@ -187,6 +187,27 @@ module PgORM::Database
         conn.try { |c| c.close unless c.closed? }
       end
     end
+
+    # Last line of defence: never hand a connection back to the pool while it is
+    # still inside a transaction.
+    #
+    # The rollback above only covers transactions this module still has a record
+    # of, and there are ways for that record to be gone while the connection is
+    # not actually finished. crystal-db's `TopLevelTransaction#commit` issues the
+    # `COMMIT` and only clears the connection's transaction flag afterwards, in
+    # `do_close`, so a COMMIT that raises leaves the flag set for good; and
+    # `PgORM::Database.transaction` removes its bookkeeping in an `ensure` that
+    # runs before this method does.
+    #
+    # A connection released in that state is not merely dirty, it is finished:
+    # `begin_transaction` raises `There is an existing transaction in this
+    # connection` before issuing anything, so every later writer that draws it
+    # from the pool fails, for the life of the process. Reads keep working —
+    # they just run inside the orphaned transaction — which is what makes it
+    # look like the service is healthy.
+    #
+    # Discarding costs one reconnect on a path that is already an error.
+    conn.try { |c| c.close if !c.closed? && c.@transaction }
     conn.try(&.release)
   end
 
