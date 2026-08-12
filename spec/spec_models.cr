@@ -336,3 +336,28 @@ class Article < PgORM::Base
   attribute content : String?
   attribute published : Bool = false
 end
+
+# Records callback invocations for the traced models below.
+CALLBACK_TRACE = [] of String
+
+# Sibling models used to check that callbacks resolve against the *runtime* type
+# when a record is saved through an abstract (`PgORM::Base+`) receiver, which is
+# what an `Array(PgORM::Base)` or a `PgORM::Base.class` parameter produces.
+#
+# `run_*_callbacks` is defined once on the base and reaches a concrete model
+# through the `before_*`/`after_*` overrides, so this path is virtual dispatch
+# rather than inlined macro expansion.
+{% for model in %w(TracedModelOne TracedModelTwo) %}
+  class {{model.id}} < PgORM::Base
+    table "models"
+
+    attribute id : Int64
+    attribute name : String
+    attribute address : String?
+    attribute age : Int32 = 0
+
+    {% for name in %w(before_create after_create before_update after_update before_save after_save before_destroy after_destroy) %}
+      {{name.id}} { CALLBACK_TRACE << "{{model.id}}:{{name.id}}" }
+    {% end %}
+  end
+{% end %}

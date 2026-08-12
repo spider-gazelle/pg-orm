@@ -480,15 +480,26 @@ module PgORM
       Database.transaction do
         run_update_callbacks do
           run_save_callbacks do
-            raise ::PgORM::Error::RecordInvalid.new(self) unless valid?
-            if changed?
-              self.class.update(id, self.changed_persist_attributes) # self.changed_attributes)
-            end
-            clear_changes_information
+            __update_persist
           end
         end
       end
       self
+    end
+
+    # Body of `__update`, deliberately kept out of the callback blocks.
+    #
+    # `run_*_callbacks` yields, so Crystal inlines it at the call site. Every
+    # `self` call left inside the block becomes its own type-id dispatch chain
+    # in that inlined copy when the receiver is abstract, and nesting two
+    # callback blocks multiplies them. Routing the work through a single
+    # non-yielding method leaves one call to dispatch instead.
+    private def __update_persist : Nil
+      raise ::PgORM::Error::RecordInvalid.new(self) unless valid?
+      if changed?
+        self.class.update(id, self.changed_persist_attributes) # self.changed_attributes)
+      end
+      clear_changes_information
     end
 
     # Internal create function, runs callbacks and pushes new model to DB
@@ -500,32 +511,38 @@ module PgORM
       Database.transaction do
         run_create_callbacks do
           run_save_callbacks do
-            raise ::PgORM::Error::RecordInvalid.new(self) unless valid?
-            attributes = self.persistent_attributes
-
-            # clear primary keys if they are not set to a value (assume auto generated)
-            keys = primary_key
-            vals = self.id?
-            case vals
-            when Nil
-              keys.each { |key| attributes.delete(key) }
-            when Enumerable
-              primary_key.each_with_index { |key, index| attributes.delete(key) if vals[index].nil? }
-            end
-
-            begin
-              adapter.insert(attributes) do |rid|
-                set_primary_key_after_create(rid)
-                clear_changes_information
-                self.new_record = false
-              end
-            rescue ex : Exception
-              raise ::PgORM::Error::RecordNotSaved.new("Failed to create record. Reason: #{ex.message}")
-            end
+            __create_persist(adapter)
           end
         end
       end
       self
+    end
+
+    # Body of `__create`. See `__update_persist` for why this is not written
+    # inline in the callback blocks.
+    private def __create_persist(adapter : ::PgORM::PostgreSQL) : Nil
+      raise ::PgORM::Error::RecordInvalid.new(self) unless valid?
+      attributes = self.persistent_attributes
+
+      # clear primary keys if they are not set to a value (assume auto generated)
+      keys = primary_key
+      vals = self.id?
+      case vals
+      when Nil
+        keys.each { |key| attributes.delete(key) }
+      when Enumerable
+        primary_key.each_with_index { |key, index| attributes.delete(key) if vals[index].nil? }
+      end
+
+      begin
+        adapter.insert(attributes) do |rid|
+          set_primary_key_after_create(rid)
+          clear_changes_information
+          self.new_record = false
+        end
+      rescue ex : Exception
+        raise ::PgORM::Error::RecordNotSaved.new("Failed to create record. Reason: #{ex.message}")
+      end
     end
 
     # Delete record in table, update model metadata

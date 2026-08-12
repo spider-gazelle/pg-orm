@@ -444,3 +444,59 @@ describe "callbacks" do
     model.description.should eq("test description")
   end
 end
+
+describe "PgORM::Persistence callbacks through an abstract receiver" do
+  it "runs the runtime type's callbacks on create, update and destroy" do
+    CALLBACK_TRACE.clear
+
+    one = TracedModelOne.new(name: "one")
+    two = TracedModelTwo.new(name: "two")
+
+    # Saving through `PgORM::Base+` is what a `PgORM::Base.class` parameter or a
+    # heterogeneous collection produces, and is the path `run_*_callbacks` has
+    # to dispatch across rather than expand inline.
+    records = [one, two] of PgORM::Base
+
+    records.each(&.save!)
+    created = CALLBACK_TRACE.dup
+
+    CALLBACK_TRACE.clear
+    one.name = "one-updated"
+    two.name = "two-updated"
+    records.each(&.save!)
+    updated = CALLBACK_TRACE.dup
+
+    CALLBACK_TRACE.clear
+    records.each(&.destroy)
+    destroyed = CALLBACK_TRACE.dup
+
+    {created: created, updated: updated, destroyed: destroyed}.should eq({
+      created: [
+        "TracedModelOne:before_create",
+        "TracedModelOne:before_save",
+        "TracedModelOne:after_save",
+        "TracedModelOne:after_create",
+        "TracedModelTwo:before_create",
+        "TracedModelTwo:before_save",
+        "TracedModelTwo:after_save",
+        "TracedModelTwo:after_create",
+      ],
+      updated: [
+        "TracedModelOne:before_update",
+        "TracedModelOne:before_save",
+        "TracedModelOne:after_save",
+        "TracedModelOne:after_update",
+        "TracedModelTwo:before_update",
+        "TracedModelTwo:before_save",
+        "TracedModelTwo:after_save",
+        "TracedModelTwo:after_update",
+      ],
+      destroyed: [
+        "TracedModelOne:before_destroy",
+        "TracedModelOne:after_destroy",
+        "TracedModelTwo:before_destroy",
+        "TracedModelTwo:after_destroy",
+      ],
+    })
+  end
+end
