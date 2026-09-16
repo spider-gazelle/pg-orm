@@ -69,14 +69,24 @@ module PgORM
     # Suppress UPDATE notifications when only these persisted attributes change.
     # An inherited declaration can be overridden, including with an empty list.
     # Models without a declaration preserve the table's installed EventBus policy.
-    macro changefeed_ignore_updates(*attributes)
+    # Use database_columns for columns without model attributes (e.g. generated
+    # search vectors). EventBus validates these against the table at registration.
+    macro changefeed_ignore_updates(*attributes, database_columns = [] of Symbol)
       {% for attribute in attributes %}
         {% unless attribute.is_a?(SymbolLiteral) %}
           {% raise "changefeed_ignore_updates expects attribute symbols" %}
         {% end %}
       {% end %}
+      {% unless database_columns.is_a?(ArrayLiteral) && database_columns.all? { |column| column.is_a?(SymbolLiteral) } %}
+        {% raise "changefeed_ignore_updates database_columns expects an array of symbols" %}
+      {% end %}
+      {% if database_columns.includes?(:id) %}
+        {% raise "changefeed_ignore_updates: id cannot be ignored" %}
+      {% end %}
       # :nodoc:
       CHANGEFEED_IGNORED_UPDATE_COLUMNS = [{{attributes.map(&.id.stringify).splat}}] of String
+      # :nodoc:
+      CHANGEFEED_IGNORED_DATABASE_COLUMNS = [{{database_columns.map(&.id.stringify).splat}}] of String
     end
 
     # :nodoc:
@@ -93,6 +103,10 @@ module PgORM
             {% raise "changefeed_ignore_updates: #{column.id} is not a persisted attribute of #{@type}" %}
           {% end %}
         {% end %}
+      {% end %}
+
+      {% if policy_type %}
+        {% columns = (columns + policy_type.constant("CHANGEFEED_IGNORED_DATABASE_COLUMNS")).uniq %}
       {% end %}
 
       def self.changefeed_ignored_update_columns : Array(String)?
