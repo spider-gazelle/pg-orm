@@ -331,8 +331,8 @@ module PgORM::Database
   at_exit { @@cdc.try &.stop }
 
   # :nodoc:
-  def self.listen_change_feed(table : String, receiver : ChangeReceiver)
-    @@cdc.try &.add_listener(table, receiver)
+  def self.listen_change_feed(table : String, receiver : ChangeReceiver, ignore_update_columns : Array(String)? = nil)
+    @@cdc.try &.add_listener(table, receiver, ignore_update_columns)
   end
 
   # :nodoc:

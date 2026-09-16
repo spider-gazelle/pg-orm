@@ -53,16 +53,16 @@ jobs:
 
   # Lint runs separately, and on a pinned Crystal.
   #
-  # ameba 1.6.4 (the current release) calls `Crystal::Lexer#next_string_array_token`,
+  # The pinned ameba 1.6.4 calls `Crystal::Lexer#next_string_array_token`,
   # which newer compilers no longer expose, so it cannot be built on `latest`.
-  # 1.7.0-dev does build, but adds rules that flag ~300 existing lines — mostly
+  # 1.7.0 does build, but adds rules that flag ~300 existing lines — mostly
   # whitespace inside macro expressions, plus heredoc indentation that changes
   # string contents. Worth doing, as its own reviewed change rather than folded
   # into a CI fix.
   #
-  # Pinning here keeps a real lint signal without holding the test matrix back
-  # from `latest`. Drop the pin once ameba 1.7 ships stable and its findings
-  # have been dealt with.
+  # Pinning both the linter dependency and compiler keeps a real lint signal
+  # without holding tests back from `latest`. Upgrade them together after
+  # the new linter findings have been dealt with.
   lint:
     name: lint
     runs-on: ubuntu-latest

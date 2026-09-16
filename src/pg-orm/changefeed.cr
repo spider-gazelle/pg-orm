@@ -35,8 +35,8 @@ module PgORM
       @event_bus.close
     end
 
-    def add_listener(table : String, receiver : ChangeReceiver = cls) : Nil
-      unless @event_bus.ensure_cdc_for(table)
+    def add_listener(table : String, receiver : ChangeReceiver, ignore_update_columns : Array(String)? = nil) : Nil
+      unless @event_bus.ensure_cdc_for(table, ignore_update_columns)
         raise Error.new("Unable to enable CDC for #{table}")
       end
       @listeners[table] = receiver

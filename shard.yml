@@ -11,6 +11,7 @@ dependencies:
     version: ~> 4.0
   eventbus:
     github: spider-gazelle/eventbus
+    version: ~> 1.1.0
   habitat:
     github: luckyframework/habitat
   pg:
@@ -21,3 +22,4 @@ development_dependencies:
     github: crystal-community/timecop.cr
   ameba:
     github: crystal-ameba/ameba
+    version: ~> 1.6.4

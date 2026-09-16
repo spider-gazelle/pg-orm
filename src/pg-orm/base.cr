@@ -66,7 +66,46 @@ module PgORM
       @extra_attributes ||= {} of String => ::PgORM::Value
     end
 
+    # Suppress UPDATE notifications when only these persisted attributes change.
+    # An inherited declaration can be overridden, including with an empty list.
+    # Models without a declaration preserve the table's installed EventBus policy.
+    macro changefeed_ignore_updates(*attributes)
+      {% for attribute in attributes %}
+        {% unless attribute.is_a?(SymbolLiteral) %}
+          {% raise "changefeed_ignore_updates expects attribute symbols" %}
+        {% end %}
+      {% end %}
+      # :nodoc:
+      CHANGEFEED_IGNORED_UPDATE_COLUMNS = [{{attributes.map(&.id.stringify).splat}}] of String
+    end
+
+    # :nodoc:
+    macro __configure_changefeed__
+      {% policy_type = [@type] + @type.ancestors %}
+      {% policy_type = policy_type.find { |ancestor| ancestor.has_constant?("CHANGEFEED_IGNORED_UPDATE_COLUMNS") } %}
+      {% columns = policy_type ? policy_type.constant("CHANGEFEED_IGNORED_UPDATE_COLUMNS") : nil %}
+      {% if columns && !@type.abstract? %}
+        {% for column in columns %}
+          {% if column == "id" %}
+            {% raise "changefeed_ignore_updates: id cannot be ignored" %}
+          {% end %}
+          {% unless PERSIST.keys.map(&.stringify).includes?(column) %}
+            {% raise "changefeed_ignore_updates: #{column.id} is not a persisted attribute of #{@type}" %}
+          {% end %}
+        {% end %}
+      {% end %}
+
+      def self.changefeed_ignored_update_columns : Array(String)?
+        {% if columns %}
+          [{{columns.splat}}] of String
+        {% else %}
+          nil
+        {% end %}
+      end
+    end
+
     macro __customize_orm__
+      __configure_changefeed__
       {% if HAS_KEYS[0] && !PERSIST.empty? %}
           check_converters_if_any
           __set_primary_key__
@@ -336,8 +375,10 @@ module PgORM
         all
       end
 
+      # Give each model its own typed registry, including abstract descendants.
+      # Escape underscores first so namespaces cannot collide with model names.
       # :nodoc:
-      @@change_block : Array(ChangeFeed({{@type.id}})) = Array(ChangeFeed({{@type.id}})).new
+      @@change_block_{{@type.name.gsub(/_/, "_u").gsub(/::/, "_n").id}} : Array(ChangeFeed({{@type.id}})) = Array(ChangeFeed({{@type.id}})).new
 
       # Changefeed at row (if `id` passed) or whole table level.
       # Returns a `ChangeFeed` instance which can be used to invoke async callbacks via `on` or
@@ -354,15 +395,17 @@ module PgORM
         {% end %}
       ) : ChangeFeed
         feed = ChangeFeed({{@type.id}}).new(id, self)
-        @@change_block << feed
-        ::PgORM::Database.listen_change_feed(table_name, self) if @@change_block.size == 1
+        if @@change_block_{{@type.name.gsub(/_/, "_u").gsub(/::/, "_n").id}}.empty?
+          ::PgORM::Database.listen_change_feed(table_name, self, changefeed_ignored_update_columns)
+        end
+        @@change_block_{{@type.name.gsub(/_/, "_u").gsub(/::/, "_n").id}} << feed
         feed
       end
 
       # :nodoc:
       def self.stop_changefeed(receiver : ChangeFeed)
-        @@change_block.delete(receiver)
-        ::PgORM::Database.stop_change_feed(table_name) if @@change_block.empty?
+        @@change_block_{{@type.name.gsub(/_/, "_u").gsub(/::/, "_n").id}}.delete(receiver)
+        ::PgORM::Database.stop_change_feed(table_name) if @@change_block_{{@type.name.gsub(/_/, "_u").gsub(/::/, "_n").id}}.empty?
       end
 
       # :nodoc:
@@ -404,11 +447,11 @@ module PgORM
         end
         model.new_record = false
         model.destroyed = true if event.deleted?
-        @@change_block.each {|cb| spawn{cb.on_event(event, model)}}
+        @@change_block_{{@type.name.gsub(/_/, "_u").gsub(/::/, "_n").id}}.each {|cb| spawn{cb.on_event(event, model)}}
       end
 
       def self.on_error(err : Exception | IO::Error)
-        @@change_block.each {|cb| cb.on_error(err)}
+        @@change_block_{{@type.name.gsub(/_/, "_u").gsub(/::/, "_n").id}}.each {|cb| cb.on_error(err)}
       end
 
       class ChangeFeed(T)
