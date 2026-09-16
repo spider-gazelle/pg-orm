@@ -369,7 +369,16 @@ feed = Display.changes
 
 Registration passes the declared fields to EventBus, which installs a SQL trigger condition. Updates changing only these fields are persisted without producing changefeed events. An update changing any other field still emits its normal full payload; INSERT and DELETE are unchanged. No-op updates are silent on filtered tables.
 
-Names must be persisted model attributes; `id` cannot be ignored. These are database attribute names, not JSON aliases. Filtering applies to every writer of the table, not only ORM saves. An ORM save that also changes `updated_at` still emits an event unless that field is explicitly included; choose ignored fields carefully so configuration changes remain visible.
+Positional names must be persisted model attributes; `id` cannot be ignored. These are database attribute names, not JSON aliases. Filtering applies to every writer of the table, not only ORM saves. An ORM save that also changes `updated_at` still emits an event unless that field is explicitly included; choose ignored fields carefully so configuration changes remain visible.
+
+For columns that exist only in PostgreSQL, such as a generated search vector, declare an explicit `database_columns` list:
+
+```crystal
+changefeed_ignore_updates :name, :description, :updated_at,
+  database_columns: [:search_vector]
+```
+
+Positional names still require persisted model attributes. `database_columns` accepts an array of column symbols; EventBus verifies they exist when the changefeed is registered. Neither list can include `id`. The lists form one policy and are overridden together by a subclass declaration. Generated columns may change with their source fields, so include the derived column when ignoring those source changes; updates to other source columns still notify.
 
 A model without a declaration passes no policy, preserving any existing table policy. Declarations on abstract model bases are inherited and can be overridden by subclasses; sibling models keep their own configuration. An empty declaration requests an unfiltered policy and conflicts with an existing filtered policy rather than silently clearing it.
 
