@@ -351,6 +351,30 @@ spawn do
 end
 ```
 
+### Ignoring telemetry-only updates
+
+Configure update filtering on the model:
+
+```crystal
+class Display < PgORM::Base
+  attribute name : String
+  attribute last_seen : Time?
+  attribute current_item_id : String?
+
+  changefeed_ignore_updates :last_seen, :current_item_id
+end
+
+feed = Display.changes
+```
+
+Registration passes the declared fields to EventBus, which installs a SQL trigger condition. Updates changing only these fields are persisted without producing changefeed events. An update changing any other field still emits its normal full payload; INSERT and DELETE are unchanged. No-op updates are silent on filtered tables.
+
+Names must be persisted model attributes; `id` cannot be ignored. These are database attribute names, not JSON aliases. Filtering applies to every writer of the table, not only ORM saves. An ORM save that also changes `updated_at` still emits an event unless that field is explicitly included; choose ignored fields carefully so configuration changes remain visible.
+
+A model without a declaration passes no policy, preserving any existing table policy. Declarations on abstract model bases are inherited and can be overridden by subclasses; sibling models keep their own configuration. An empty declaration requests an unfiltered policy and conflicts with an existing filtered policy rather than silently clearing it.
+
+Policies are shared across services using the same table. Conflicting declarations raise during registration. Use EventBus's expected-current-policy replacement API for deliberate changes or rollback. Upgrade every service that installs EventBus triggers before enabling filtering, and register the changefeed before starting telemetry writers if the first write must be silent.
+
 ## Advisory Locks
 
 `PgORM::PgAdvisoryLock` class provides a means for creating PostgreSQL [Advisory Locks](https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS).
