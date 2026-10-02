@@ -157,33 +157,53 @@ describe "model changefeed update policies" do
     feed.try &.stop
   end
 
-  it "fails on conflicting policies and can retry after the conflict is resolved" do
+  it "replaces a differing installed policy when the model declaration changes" do
     original_events = Channel(PgORM::ChangeReceiver::Event).new(10)
     original_feed = TelemetryModel.changes
     spawn { original_feed.on { |change| original_events.send(change.event) } }
     Fiber.yield
-    expect_raises(ArgumentError, "Conflicting CDC update policy") { OverrideTelemetryModel.changes }
-    # A second attempt must validate again, rather than bypass registration
-    # because the first failed subscription leaked a model callback.
-    expect_raises(ArgumentError, "Conflicting CDC update policy") { OverrideTelemetryModel.changes }
-    TelemetryModel.create!(name: "original listener remains active")
+    model = TelemetryModel.create!(name: "original")
     receive_policy_event(original_events).created?.should be_true
     original_feed.stop
-    bus = EventBus.new(ENV["PG_DATABASE_URL"])
-    bus.replace_cdc_update_policy("changefeed_models", ["last_seen"], ["last_seen", "playlist_item_id"]).should be_true
+
+    # a redeploy with fewer ignored columns must not require manual intervention
     events = Channel(PgORM::ChangeReceiver::Event).new(10)
-    feed = OverrideTelemetryModel.changes
-    spawn { feed.on { |change| events.send(change.event) } }
+    override_feed = OverrideTelemetryModel.changes
+    spawn { override_feed.on { |change| events.send(change.event) } }
     Fiber.yield
-    model = OverrideTelemetryModel.create!(name: "retry")
-    receive_policy_event(events).created?.should be_true
-    model.playlist_item_id = "notify"
+    override = OverrideTelemetryModel.find!(model.id)
+    override.playlist_item_id = "notify"
+    override.save!
+    receive_policy_event(events).updated?.should be_true
+    override.last_seen = 1
+    override.save!
+    select
+    when event = events.receive
+      fail "unexpected changefeed event #{event}"
+    when timeout(200.milliseconds)
+    end
+    override_feed.stop
+
+    # and growing the list again restores suppression
+    events = Channel(PgORM::ChangeReceiver::Event).new(10)
+    restored_feed = TelemetryModel.changes
+    spawn { restored_feed.on { |change| events.send(change.event) } }
+    Fiber.yield
+    model = TelemetryModel.find!(model.id)
+    model.playlist_item_id = "silent"
+    model.save!
+    model.name = "notify"
     model.save!
     receive_policy_event(events).updated?.should be_true
+    select
+    when event = events.receive
+      fail "unexpected changefeed event #{event}"
+    when timeout(200.milliseconds)
+    end
   ensure
-    feed.try &.stop
+    restored_feed.try &.stop
+    override_feed.try &.stop
     original_feed.try &.stop
-    bus.try &.close
   end
 end
 

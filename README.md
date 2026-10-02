@@ -382,7 +382,7 @@ Positional names still require persisted model attributes. `database_columns` ac
 
 A model without a declaration passes no policy, preserving any existing table policy. Declarations on abstract model bases are inherited and can be overridden by subclasses; sibling models keep their own configuration. An empty declaration requests an unfiltered policy and conflicts with an existing filtered policy rather than silently clearing it.
 
-Policies are shared across services using the same table. Conflicting declarations raise during registration. Use EventBus's expected-current-policy replacement API for deliberate changes or rollback. Upgrade every service that installs EventBus triggers before enabling filtering, and register the changefeed before starting telemetry writers if the first write must be silent.
+Policies are shared across services using the same table. Registering a model whose declaration differs from the installed policy replaces it, so changing `changefeed_ignore_updates` takes effect on the next deploy; keep declarations consistent across services sharing a table. Upgrade every service that installs EventBus triggers before enabling filtering, and register the changefeed before starting telemetry writers if the first write must be silent.
 
 ## Advisory Locks
 
