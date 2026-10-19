@@ -308,6 +308,13 @@ describe PgORM::Query do
       d1.should eq(d2)
     end
 
+    it "ignores ordering when calculating" do
+      User.order(name: :desc).count.should eq User.count
+      User.order(:name).where(group_id: User.minimum(:group_id)).count.should be > 0
+      User.order(name: :desc).sum(:group_id).should eq User.sum(:group_id)
+      User.order(name: :desc).maximum(:group_id).should eq User.maximum(:group_id)
+    end
+
     it "test average" do
       User.average(:group_id).is_a?(Float64).should be_true
       User.average("LENGTH(name)").is_a?(Float64).should be_true
