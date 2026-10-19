@@ -458,7 +458,7 @@ describe "PgORM::Persistence#on_persist" do
     ModelWithPersistHook.persisted.should eq [{
       true,
       model.id,
-      JSON.parse(%({"name": [null, "callback"], "address": [null, "23"]})).as_h,
+      JSON.parse(%({"id": [null, #{model.id}], "name": [null, "callback"], "address": [null, "23"], "age": [null, 10]})).as_h,
       1_i64,
     }]
   end
