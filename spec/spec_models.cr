@@ -248,6 +248,33 @@ class ModelWithCallbacks < PgORM::Base
   end
 end
 
+class ModelWithPersistHook < PgORM::Base
+  table "models"
+
+  attribute id : Int64
+  attribute name : String
+  attribute address : String?
+  attribute age : Int32 = 10
+
+  before_save :set_address
+
+  class_property persisted = [] of {Bool, Int64?, Hash(String, JSON::Any), Int64}
+  class_property? fail_persist = false
+
+  def set_address
+    self.address = "23" if name == "callback"
+  end
+
+  # Records the changes visible to the hook, along with the number of rows
+  # visible on the same connection, to prove the hook runs in the transaction
+  protected def on_persist(created : Bool) : Nil
+    super
+    count = ModelWithPersistHook.where(id: id).count
+    self.class.persisted << {created, id?, JSON.parse(changes_json).as_h, count}
+    raise "persist failure" if self.class.fail_persist?
+  end
+end
+
 class ModelWithValidations < PgORM::Base
   table "models"
 
