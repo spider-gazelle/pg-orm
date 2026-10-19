@@ -498,8 +498,19 @@ module PgORM
       raise ::PgORM::Error::RecordInvalid.new(self) unless valid?
       if changed?
         self.class.update(id, self.changed_persist_attributes) # self.changed_attributes)
+        on_persist(created: false)
       end
       clear_changes_information
+    end
+
+    # Called inside the save transaction once a create or update has been
+    # written to the database, after all `before_*` callbacks and validation
+    # but before change tracking is cleared. The primary key is set, so the
+    # pending changes and the record id are both available. Raising rolls back
+    # the save. Updates without changes are not persisted and skip the hook.
+    #
+    # Override (calling `super`) to observe persisted changes, e.g. for auditing.
+    protected def on_persist(created : Bool) : Nil
     end
 
     # Internal create function, runs callbacks and pushes new model to DB
@@ -537,12 +548,15 @@ module PgORM
       begin
         adapter.insert(attributes) do |rid|
           set_primary_key_after_create(rid)
-          clear_changes_information
           self.new_record = false
         end
       rescue ex : Exception
         raise ::PgORM::Error::RecordNotSaved.new("Failed to create record. Reason: #{ex.message}")
       end
+
+      # outside the insert block, as the connection is busy with its result set
+      on_persist(created: true)
+      clear_changes_information
     end
 
     # Delete record in table, update model metadata

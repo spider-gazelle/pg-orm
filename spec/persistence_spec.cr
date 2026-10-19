@@ -445,6 +445,61 @@ describe "callbacks" do
   end
 end
 
+describe "PgORM::Persistence#on_persist" do
+  before_each do
+    ModelWithPersistHook.persisted.clear
+    ModelWithPersistHook.fail_persist = false
+  end
+
+  it "is called with pending changes and the generated id on create" do
+    model = ModelWithPersistHook.create!(name: "callback")
+    model.changed?.should be_false
+
+    ModelWithPersistHook.persisted.should eq [{
+      true,
+      model.id,
+      JSON.parse(%({"name": [null, "callback"], "address": [null, "23"]})).as_h,
+      1_i64,
+    }]
+  end
+
+  it "is called with previous and current values on update" do
+    model = ModelWithPersistHook.create!(name: "bob")
+    ModelWithPersistHook.persisted.clear
+
+    model.age = 20
+    model.save!
+    model.changed?.should be_false
+
+    ModelWithPersistHook.persisted.should eq [{
+      false,
+      model.id,
+      JSON.parse(%({"age": [10, 20]})).as_h,
+      1_i64,
+    }]
+  end
+
+  it "is not called when an update has no changes" do
+    model = ModelWithPersistHook.create!(name: "bob")
+    ModelWithPersistHook.persisted.clear
+
+    model.save!
+    ModelWithPersistHook.persisted.should be_empty
+  end
+
+  it "rolls back the save when it raises" do
+    model = ModelWithPersistHook.create!(name: "bob")
+    ModelWithPersistHook.fail_persist = true
+
+    model.age = 20
+    expect_raises(Exception, "persist failure") { model.save! }
+    ModelWithPersistHook.find(model.id).age.should eq 10
+
+    expect_raises(Exception, "persist failure") { ModelWithPersistHook.create!(name: "rollback") }
+    ModelWithPersistHook.where(name: "rollback").count.should eq 0
+  end
+end
+
 describe "PgORM::Persistence callbacks through an abstract receiver" do
   it "runs the runtime type's callbacks on create, update and destroy" do
     CALLBACK_TRACE.clear
