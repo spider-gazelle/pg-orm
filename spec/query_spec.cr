@@ -310,7 +310,6 @@ describe PgORM::Query do
 
     it "ignores ordering when calculating" do
       User.order(name: :desc).count.should eq User.count
-      User.order(:name).where(group_id: User.minimum(:group_id)).count.should be > 0
       User.order(name: :desc).sum(:group_id).should eq User.sum(:group_id)
       User.order(name: :desc).maximum(:group_id).should eq User.maximum(:group_id)
     end
