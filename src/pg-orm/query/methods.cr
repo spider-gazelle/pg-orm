@@ -326,7 +326,8 @@ module PgORM
           end
           str << ')'
         end
-        builder = self.builder.unscope(:select)
+        # ordering is meaningless for an aggregate and invalid without a GROUP BY
+        builder = self.builder.unscope(:select, :order)
         builder.select!(selects)
         Database.adapter(builder).scalar
       end
