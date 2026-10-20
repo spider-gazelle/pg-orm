@@ -632,7 +632,7 @@ module PgORM
       # Performs full-text search and orders by relevance rank
       #
       # ```
-      # Article.search_ranked("crystal programming", :title, :content)
+      # Article.search_ranked("crystal & programming", :title, :content)
       # ```
       def search_ranked(search_query : FullTextSearch::SearchQuery) : self
         dup builder.search_ranked(search_query)

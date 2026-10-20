@@ -70,23 +70,24 @@ module PgORM
         new(**attributes).save!
       end
 
-      # Creates and attempts to save a new record to the database.
+      # Creates and saves a new record to the database, returning the record.
       #
-      # Returns the record regardless of whether it was saved successfully.
-      # Check `#persisted?` to confirm if the save succeeded.
+      # Saves with `#save!`, so like `create!` it raises
+      # `PgORM::Error::RecordInvalid` if validation fails, or
+      # `PgORM::Error::RecordNotSaved` if the record cannot be saved.
       #
       # ## Example
       #
       # ```
-      # user = User.create(name: "John", email: "john@example.com")
-      # if user.persisted?
+      # begin
+      #   user = User.create(name: "John", email: "john@example.com")
       #   puts "User created with ID: #{user.id}"
-      # else
-      #   puts "Failed to create user: #{user.errors}"
+      # rescue ex : PgORM::Error::RecordInvalid
+      #   puts "Failed to create user: #{ex.message}"
       # end
       # ```
       #
-      # See also: `#save`
+      # See also: `#save!`
       def self.create(**attributes)
         record = new(**attributes)
         begin
@@ -321,15 +322,18 @@ module PgORM
 
     # Updates the record with new attributes and saves it.
     #
-    # Returns true if successful, false if validation fails.
+    # Returns `true` on success. Saves with `#save!`, so it raises
+    # `PgORM::Error::RecordInvalid` if validation fails rather than returning
+    # `false`. To get a `Bool` instead, assign the attributes and call `#save`.
     #
     # ## Example
     #
     # ```
     # user = User.find(1)
-    # if user.update(name: "Jane", email: "jane@example.com")
+    # begin
+    #   user.update(name: "Jane", email: "jane@example.com")
     #   puts "Updated!"
-    # else
+    # rescue PgORM::Error::RecordInvalid
     #   puts "Failed: #{user.errors}"
     # end
     # ```

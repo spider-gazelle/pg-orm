@@ -59,7 +59,7 @@ module PgORM
     # user = User.new(name: "")
     # begin
     #   user.save!
-    # rescue PgORM::Error::RecordInvalid => e
+    # rescue e : PgORM::Error::RecordInvalid
     #   puts e.message # => "User has an invalid field. `name` can't be blank"
     #   e.errors.each do |error|
     #     puts "#{error[:field]}: #{error[:message]}"

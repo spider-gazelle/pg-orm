@@ -8,16 +8,22 @@ module PgORM
 
     # Declares a belongs to relationship.
     #
+    # The foreign key attribute is not declared by this macro and must be
+    # declared on the model (e.g. `attribute author_id : Int64?`).
+    #
     # This will add the following methods:
-    # - `association` returns the associated object (or nil);
-    # - `association=` assigns the associated object, assigning the foreign key;
+    # - `association` returns the associated object (raises
+    #   `::PgORM::Error::RecordNotFound` if it doesn't exist);
+    # - `association?` returns the associated object, or nil if it doesn't exist;
+    # - `association=` assigns the associated object, assigning the foreign key
+    #   if the object is persisted;
     # - `build_association` builds the associated object, assigning the foreign
     #   key if the parent record is persisted, or delaying it to when the new
     #   record is saved;
-    # - `create_association` creates the associated object, assigning the foreign
-    #   key, granted that validation passed on the associated object;
-    # - `create_association!` same as `create_association` but raises a
-    #   ::PgORM::Error::RecordNotSaved exception when validation fails;
+    # - `create_association` creates the associated object with `create`,
+    #   assigning the foreign key;
+    # - `create_association!` same as `create_association` but uses `create!`.
+    #   Both raise `::PgORM::Error::RecordInvalid` when validation fails;
     # - `reload_association` to reload the associated object.
     #
     # For example a Book class declares `belongs_to :author` which will add:
@@ -41,6 +47,7 @@ module PgORM
     #   - `true` to always save the associations (new or already persisted),
     #   - `false` to never save the associations automatically.
     # - `dependent` can be either:
+    #   - `nil` (default) to do nothing,
     #   - `:delete` to `delete` the associated record in SQL,
     #   - `:destroy` to call `#destroy` on the associated object.
     macro belongs_to(name, class_name = nil, foreign_key = nil, autosave = nil, dependent = nil)
@@ -123,11 +130,24 @@ module PgORM
 
     # Declares a has one relationship.
     #
+    # The foreign key attribute is not declared by this macro and must be
+    # declared on the associated model.
+    #
     # This will add the following methods:
-    # - `association` returns the associated object (or nil).
-    # - `association=` assigns the associated object, assigning the
-    #   association's foreign key, then saving the association; permanently
-    #   deletes the previously associated object;
+    # - `association` returns the associated object (raises
+    #   `::PgORM::Error::RecordNotFound` if it doesn't exist);
+    # - `association?` returns the associated object, or nil if it doesn't exist;
+    # - `association=` assigns the associated object. If this record is
+    #   persisted, the previously associated record is deleted
+    #   (`dependent: :delete`), destroyed (`dependent: :destroy`) or otherwise
+    #   has its foreign key set to `nil`, then the new object's foreign key is
+    #   assigned and it is saved;
+    # - `build_association` builds the associated object, assigning its foreign
+    #   key if this record is persisted;
+    # - `create_association` builds and saves (`save`) the associated object;
+    # - `create_association!` builds and saves (`save!`) the associated object,
+    #   raising `::PgORM::Error::RecordInvalid` when validation fails. Both
+    #   raise `::PgORM::Error::RecordNotSaved` if this record has no id;
     # - `reload_association` to reload the associated object.
     #
     # For example an Account class declares `has_one :supplier` which will add:
@@ -151,7 +171,8 @@ module PgORM
     #   - `true` to always save the associations (new or already persisted),
     #   - `false` to never save the associations automatically.
     # - `dependent` can be either:
-    #   - `:nullify` (default) to set the foreign key to `nil` in SQL,
+    #   - `nil` (default) to do nothing,
+    #   - `:nullify` to set the foreign key to `nil` in SQL,
     #   - `:delete` to `delete` the associated record in SQL,
     #   - `:destroy` to call `#destroy` on the associated object.
     macro has_one(name, class_name = nil, foreign_key = nil, autosave = nil, dependent = nil)
@@ -249,6 +270,30 @@ module PgORM
     end
 
     # Declares a has many relationship.
+    #
+    # Adds an `association` method returning a `::PgORM::Relation` of the
+    # associated records. The foreign key attribute is not declared by this
+    # macro and must be declared on the associated model.
+    #
+    # Options
+    #
+    # - `class_name` overrides the association class name (inferred as `name`
+    #   with a trailing "s" removed, camelcased, by default);
+    # - `foreign_key` overrides the foreign key for the association (inferred as
+    #   the name of this class with a trailing "s" removed, underscored, + "_id"
+    #   by default);
+    # - `autosave` can be either:
+    #   - `nil` (default) to only save newly built associations when the parent
+    #     record is saved,
+    #   - `true` to always save loaded or built associations,
+    #   - `false` to never save the associations automatically.
+    # - `dependent` can be either:
+    #   - `nil` (default) to do nothing,
+    #   - `:nullify` to set the foreign key to `nil` in SQL,
+    #   - `:delete_all` to delete the associated records in SQL,
+    #   - `:destroy` to call `#destroy` on each associated object.
+    # - `serialize` when `true` includes the associated records in `to_json`
+    #   when they have been loaded (e.g. by a join or by iterating the relation).
     macro has_many(name, class_name = nil, foreign_key = nil, autosave = nil, dependent = nil, serialize = false)
       {% unless class_name
            class_name = name.id.stringify.gsub(/s$/, "").camelcase.id

@@ -98,8 +98,8 @@ module PgORM
       [@offset + @limit, @total.to_i].min
     end
 
-    # Iterate over records without loading all into memory at once
-    # This allows streaming/processing records one at a time
+    # Iterate over the page's records. This loads the whole page (at most
+    # `limit` records) into memory, then yields each record.
     def each(&block : T ->)
       @query.each(&block)
     end
@@ -420,6 +420,14 @@ module PgORM
     # - Always use `.order()` with the same column as `cursor_column`
     # - The cursor column should be indexed for performance
     # - Don't use both `after` and `before` at the same time
+    # - Records are loaded immediately (`limit + 1` rows are fetched to detect
+    #   a next page)
+    # - `next_cursor` and `prev_cursor` are always the primary key (`id`) of the
+    #   boundary records, even when `cursor_column` is another column. With a
+    #   custom `cursor_column`, build the cursor from that column's value
+    # - `before` adds `cursor_column < before` but keeps the query's order and
+    #   limit, so with an ascending order it returns the first `limit` matching
+    #   rows rather than the rows immediately preceding the cursor
     #
     # Returns a `CursorPaginatedResult` with records and cursor metadata.
     def paginate_cursor(

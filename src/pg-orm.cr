@@ -76,12 +76,15 @@
 #
 # ```
 # # Simple search
-# Article.search("crystal programming", :title, :content)
+# Article.search("crystal & programming", :title, :content)
+#
+# # Plain text search (safe for user input)
+# Article.search_plain("crystal programming", :title, :content)
 #
 # # Weighted search (title more important)
 # Article.search_weighted("crystal", {
-#   title:   FullTextSearch::Weight::A,
-#   content: FullTextSearch::Weight::B,
+#   :title   => FullTextSearch::Weight::A,
+#   :content => FullTextSearch::Weight::B,
 # })
 #
 # # Ranked search (ordered by relevance)

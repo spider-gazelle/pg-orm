@@ -7,24 +7,33 @@ module PgORM
   # - Weighted search (prioritize certain columns)
   # - Ranked search (order by relevance)
   # - Phrase search (exact phrase matching)
-  # - Proximity search (words within N positions)
+  # - Proximity search (words exactly N positions apart)
   # - Prefix search (word prefix matching)
   # - Pre-computed tsvector columns (for production performance)
+  #
+  # `search`, `search_weighted`, `search_ranked`, `search_ranked_weighted`,
+  # `search_vector` and `search_vector_ranked` pass the query to `to_tsquery`,
+  # so it must be valid tsquery syntax (e.g. `"crystal & programming"`); plain
+  # multi-word input raises a PostgreSQL syntax error. Use `search_plain` or
+  # `search_vector_plain` (`plainto_tsquery`) for user-entered text.
   #
   # ## Basic Usage
   #
   # ```
   # # Simple search across multiple columns
-  # Article.search("crystal programming", :title, :content)
+  # Article.search("crystal & programming", :title, :content)
+  #
+  # # Plain text search (safe for user input)
+  # Article.search_plain("crystal programming", :title, :content)
   #
   # # Weighted search (title more important than content)
   # Article.search_weighted("crystal", {
-  #   title:   FullTextSearch::Weight::A, # Weight 1.0
-  #   content: FullTextSearch::Weight::B, # Weight 0.4
+  #   :title   => FullTextSearch::Weight::A, # Weight 1.0
+  #   :content => FullTextSearch::Weight::B, # Weight 0.4
   # })
   #
   # # Ranked search (ordered by relevance)
-  # Article.search_ranked("crystal programming", :title, :content)
+  # Article.search_ranked("crystal & programming", :title, :content)
   # ```
   #
   # ## Advanced Usage
@@ -33,7 +42,7 @@ module PgORM
   # # Phrase search (exact phrase)
   # Article.search_phrase("crystal programming language", :content)
   #
-  # # Proximity search (words within 5 positions)
+  # # Proximity search ("programming" exactly 5 positions after "crystal")
   # Article.search_proximity("crystal", "programming", 5, :content)
   #
   # # Prefix search (matches crystal, crystalline, etc.)
@@ -61,7 +70,7 @@ module PgORM
   # Then use the optimized search methods:
   #
   # ```
-  # Article.search_vector("crystal programming", :search_vector)
+  # Article.search_vector("crystal & programming", :search_vector)
   # Article.search_vector_ranked("crystal", :search_vector)
   # ```
   module FullTextSearch
@@ -77,9 +86,9 @@ module PgORM
     #
     # ```
     # Article.search_weighted("crystal", {
-    #   title:    FullTextSearch::Weight::A, # Most important
-    #   subtitle: FullTextSearch::Weight::B,
-    #   content:  FullTextSearch::Weight::D, # Least important
+    #   :title    => FullTextSearch::Weight::A, # Most important
+    #   :subtitle => FullTextSearch::Weight::B,
+    #   :content  => FullTextSearch::Weight::D, # Least important
     # })
     # ```
     enum Weight
@@ -124,7 +133,7 @@ module PgORM
     # Article.search_ranked("crystal", :content, rank_function: RankFunction::Rank)
     #
     # # Cover density ranking (better for phrases)
-    # Article.search_ranked("crystal programming", :content, rank_function: RankFunction::RankCD)
+    # Article.search_ranked("crystal & programming", :content, rank_function: RankFunction::RankCD)
     # ```
     enum RankFunction
       Rank   # ts_rank
@@ -163,6 +172,8 @@ module PgORM
 
     # Performs full-text search using to_tsvector and to_tsquery
     #
+    # *query* must be valid tsquery syntax; use `search_plain` for user input.
+    #
     # ```
     # Article.search("crystal & programming", :title, :content)
     # Article.search("crystal | ruby", :title, config: "simple")
@@ -191,7 +202,7 @@ module PgORM
     #
     # ```
     # Article.search_weighted("crystal", {"title" => Weight::A, "content" => Weight::B})
-    # Article.search_weighted("crystal", {title: Weight::A, content: Weight::B})
+    # Article.search_weighted("crystal", {:title => Weight::A, :content => Weight::B})
     # ```
     def search_weighted(query : String, weighted_columns : Hash(String, Weight), config : String = "english") : Collection(self)
       raise ArgumentError.new("search query cannot be empty") if query.strip.empty?
@@ -211,7 +222,7 @@ module PgORM
     # Performs full-text search and orders by relevance rank
     #
     # ```
-    # Article.search_ranked("crystal programming", ["title", "content"])
+    # Article.search_ranked("crystal & programming", ["title", "content"])
     # Article.search_ranked("ruby", ["title", "content"], rank_normalization: 1)
     # Article.search_ranked("ruby", :title, :content, rank_function: RankFunction::RankCD)
     # ```
@@ -261,7 +272,7 @@ module PgORM
     #
     # ```
     # Article.search_ranked_weighted("crystal", {"title" => Weight::A, "content" => Weight::B})
-    # Article.search_ranked_weighted("crystal", {title: Weight::A, content: Weight::B})
+    # Article.search_ranked_weighted("crystal", {:title => Weight::A, :content => Weight::B})
     # ```
     def search_ranked_weighted(
       query : String,
@@ -325,10 +336,11 @@ module PgORM
       search_phrase(phrase, columns.to_a, config)
     end
 
-    # Performs proximity search (words within N positions)
+    # Performs proximity search: matches when *word2* appears exactly *distance*
+    # positions after *word1* (tsquery `word1 <distance> word2`)
     #
     # ```
-    # Article.search_proximity("crystal", "programming", 5, :content) # Within 5 words
+    # Article.search_proximity("crystal", "programming", 5, :content) # Exactly 5 positions apart
     # ```
     def search_proximity(word1 : String, word2 : String, distance : Int32, columns : Array(String), config : String = "english") : Collection(self)
       raise ArgumentError.new("words cannot be empty") if word1.strip.empty? || word2.strip.empty?
@@ -377,7 +389,8 @@ module PgORM
       search_prefix(prefix, columns.to_a, config)
     end
 
-    # Performs plain text search (automatically converts to tsquery)
+    # Performs plain text search using `plainto_tsquery` (words are ANDed and
+    # operators are ignored), suitable for user input
     #
     # ```
     # Article.search_plain("crystal programming", :title, :content)
