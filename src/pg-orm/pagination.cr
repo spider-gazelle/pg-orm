@@ -417,17 +417,16 @@ module PgORM
     #
     # ## Important Notes
     #
-    # - Always use `.order()` with the same column as `cursor_column`
-    # - The cursor column should be indexed for performance
+    # - Pages follow the query's order of `cursor_column` (ascending or
+    #   descending). The query is ordered by `cursor_column` if it isn't already
+    # - `before` returns the page immediately before the cursor, in the same order
+    # - `next_cursor` and `prev_cursor` are the `cursor_column` values of the
+    #   boundary records, times with microsecond precision
+    # - The cursor column should be unique and indexed: rows sharing the
+    #   boundary value can be skipped
     # - Don't use both `after` and `before` at the same time
     # - Records are loaded immediately (`limit + 1` rows are fetched to detect
-    #   a next page)
-    # - `next_cursor` and `prev_cursor` are always the primary key (`id`) of the
-    #   boundary records, even when `cursor_column` is another column. With a
-    #   custom `cursor_column`, build the cursor from that column's value
-    # - `before` adds `cursor_column < before` but keeps the query's order and
-    #   limit, so with an ascending order it returns the first `limit` matching
-    #   rows rather than the rows immediately preceding the cursor
+    #   another page)
     #
     # Returns a `CursorPaginatedResult` with records and cursor metadata.
     def paginate_cursor(
@@ -438,38 +437,54 @@ module PgORM
     ) : CursorPaginatedResult(T)
       limit = 1 if limit < 1
 
-      query = self
+      # pages follow the query's order of the cursor column, ascending by default
+      descending = builder.descending?(cursor_column)
+      query = descending.nil? ? order(cursor_column) : self
+      backward = !after && !!before
 
       # Apply cursor conditions
       if after
-        query = query.where("#{cursor_column} > ?", after)
+        query = query.where("#{cursor_column} #{descending ? '<' : '>'} ?", after)
       elsif before
-        query = query.where("#{cursor_column} < ?", before)
+        # read backwards from the cursor, then restore the order
+        query = query.where("#{cursor_column} #{descending ? '>' : '<'} ?", before)
+        reversed = query.builder.dup
+        reversed.reverse_orders!
+        query = query.dup(reversed)
       end
 
-      # Fetch one extra record to determine if there's a next page
+      # Fetch one extra record to determine if there's another page
       records = query.limit(limit + 1).to_a
 
       has_more = records.size > limit
       records = records[0...limit] if has_more
+      records.reverse! if backward
 
       # Determine cursors
       next_cursor = nil
       prev_cursor = nil
 
       if !records.empty?
-        if after || (!after && !before)
-          # Forward pagination
-          next_cursor = records.last.id.to_s if has_more
-          prev_cursor = records.first.id.to_s if after
+        if backward
+          prev_cursor = cursor_value(records.first, cursor_column) if has_more
+          next_cursor = cursor_value(records.last, cursor_column)
         else
-          # Backward pagination
-          prev_cursor = records.first.id.to_s if has_more
-          next_cursor = records.last.id.to_s if before
+          next_cursor = cursor_value(records.last, cursor_column) if has_more
+          prev_cursor = cursor_value(records.first, cursor_column) if after
         end
       end
 
       CursorPaginatedResult.new(records, limit, next_cursor, prev_cursor)
+    end
+
+    # the cursor for a record: its *column* value, times with microsecond
+    # precision so they compare equal to the stored value
+    private def cursor_value(record : T, column : Symbol) : String?
+      case value = record.persistent_attributes[column]?
+      when Nil  then nil
+      when Time then value.to_rfc3339(fraction_digits: 6)
+      else           value.to_s
+      end
     end
   end
 end

@@ -388,3 +388,42 @@ CALLBACK_TRACE = [] of String
     {% end %}
   end
 {% end %}
+
+# Associated models with validations, to check that failed creates raise
+
+class ValidatedBook < PgORM::Base
+  table "books"
+
+  attribute id : Int32
+  attribute author_id : Int32
+  attribute name : String
+
+  validates :name, presence: true
+end
+
+class AuthorValidatedBooks < PgORM::Base
+  table "authors"
+
+  attribute id : Int32
+  attribute name : String
+
+  has_many :validated_books, class_name: ValidatedBook, foreign_key: "author_id"
+end
+
+class ValidatedAccount < PgORM::Base
+  table "accounts"
+
+  attribute id : Int32
+  attribute supplier_id : Int32?
+  attribute rejected : Bool = false, persistence: false
+
+  validate :rejected, "is set", ->(this : ValidatedAccount) { !this.rejected }
+end
+
+class SupplierValidatedAccount < PgORM::Base
+  table "suppliers"
+
+  attribute id : Int32
+
+  has_one :validated_account, class_name: ValidatedAccount, foreign_key: "supplier_id"
+end

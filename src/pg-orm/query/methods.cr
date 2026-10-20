@@ -204,19 +204,8 @@ module PgORM
           cache.last?
         else
           builder = self.builder.limit(1)
-          if orders = builder.orders?
-            builder.unscope!(:order)
-            orders.each do |order|
-              case order
-              when Tuple
-                builder.order!({order[0] => order[1] == :asc ? :desc : :asc})
-              when String
-                order = order.gsub(/\b(ASC|DESC)\b/i) do |m|
-                  m.compare("ASC", case_insensitive: true) == 0 ? "DESC" : "ASC"
-                end
-                builder.order!(order)
-              end
-            end
+          if builder.orders?
+            builder.reverse_orders!
           else
             keys = T.primary_key
             keys = {keys} unless keys.is_a?(Tuple)

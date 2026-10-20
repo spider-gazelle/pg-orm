@@ -560,6 +560,86 @@ describe PgORM::Pagination do
       end
     end
 
+    describe "Cursor Pagination Direction" do
+      before_each do
+        Article.clear
+        20.times { |i| Article.create!(title: "Article #{(i + 1).to_s.rjust(2, '0')}", content: "Content") }
+      end
+
+      it "returns the page immediately before the cursor" do
+        ids = Article.order(:id).to_a.map(&.id)
+        first_page = Article.order(:id).paginate_cursor(limit: 5)
+        second_page = Article.order(:id).paginate_cursor(after: first_page.next_cursor, limit: 5)
+        third_page = Article.order(:id).paginate_cursor(after: second_page.next_cursor, limit: 5)
+        third_page.records.map(&.id).should eq ids[10...15]
+
+        back_page = Article.order(:id).paginate_cursor(before: third_page.prev_cursor, limit: 5)
+        back_page.records.map(&.id).should eq ids[5...10]
+        back_page.has_prev?.should be_true
+        back_page.has_next?.should be_true
+
+        # and forward again from the page before
+        Article.order(:id).paginate_cursor(after: back_page.next_cursor, limit: 5).records.map(&.id).should eq ids[10...15]
+
+        first_again = Article.order(:id).paginate_cursor(before: back_page.prev_cursor, limit: 5)
+        first_again.records.map(&.id).should eq ids[0...5]
+        first_again.has_prev?.should be_false
+        first_again.has_next?.should be_true
+      end
+
+      it "follows a descending order" do
+        ids = Article.order(id: :desc).to_a.map(&.id)
+        first_page = Article.order(id: :desc).paginate_cursor(limit: 8)
+        first_page.records.map(&.id).should eq ids[0...8]
+
+        second_page = Article.order(id: :desc).paginate_cursor(after: first_page.next_cursor, limit: 8)
+        second_page.records.map(&.id).should eq ids[8...16]
+
+        last_page = Article.order(id: :desc).paginate_cursor(after: second_page.next_cursor, limit: 8)
+        last_page.records.map(&.id).should eq ids[16...20]
+        last_page.has_next?.should be_false
+
+        back_page = Article.order(id: :desc).paginate_cursor(before: last_page.prev_cursor, limit: 8)
+        back_page.records.map(&.id).should eq ids[8...16]
+
+        # a raw SQL order works the same way
+        Article.order("id DESC").paginate_cursor(after: first_page.next_cursor, limit: 8).records.map(&.id).should eq ids[8...16]
+      end
+
+      it "uses the cursor column for cursors" do
+        titles = Article.order(:title).to_a.map(&.title)
+        first_page = Article.order(:title).paginate_cursor(limit: 5, cursor_column: :title)
+        first_page.next_cursor.should eq titles[4]
+
+        second_page = Article.order(:title).paginate_cursor(after: first_page.next_cursor, limit: 5, cursor_column: :title)
+        second_page.records.map(&.title).should eq titles[5...10]
+        second_page.prev_cursor.should eq titles[5]
+
+        back_page = Article.order(:title).paginate_cursor(before: second_page.prev_cursor, limit: 5, cursor_column: :title)
+        back_page.records.map(&.title).should eq titles[0...5]
+      end
+
+      it "orders by the cursor column when the query isn't ordered" do
+        ids = Article.order(:id).to_a.map(&.id)
+        first_page = Article.all.paginate_cursor(limit: 5)
+        first_page.records.map(&.id).should eq ids[0...5]
+        Article.all.paginate_cursor(after: first_page.next_cursor, limit: 5).records.map(&.id).should eq ids[5...10]
+      end
+
+      it "keeps the precision of time cursors" do
+        Timo.clear
+        6.times { |i| Timo.create!(name: "Timo #{i}") }
+        names = Timo.order(:created_at).to_a.map(&.name)
+
+        first_page = Timo.order(:created_at).paginate_cursor(limit: 3, cursor_column: :created_at)
+        first_page.records.map(&.name).should eq names[0...3]
+
+        second_page = Timo.order(:created_at).paginate_cursor(after: first_page.next_cursor, limit: 3, cursor_column: :created_at)
+        second_page.records.map(&.name).should eq names[3...6]
+        second_page.has_next?.should be_false
+      end
+    end
+
     describe "Cursor Pagination Edge Cases" do
       before_each do
         Article.clear

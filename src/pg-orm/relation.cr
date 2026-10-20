@@ -24,10 +24,15 @@ module PgORM
       record
     end
 
+    # Builds and saves a record, raising `Error::RecordInvalid` if it's invalid,
+    # like `Base.create`
     def create(**attributes) : T
-      record = build(**attributes)
-      record.save
-      record
+      build(**attributes).tap(&.save!)
+    end
+
+    # :ditto:
+    def create!(**attributes) : T
+      create(**attributes)
     end
 
     def delete(*records : T) : Nil

@@ -202,6 +202,17 @@ describe PgORM::Associations do
       account.persisted?.should be_true
     end
 
+    it "raises when create fails validation" do
+      supplier = SupplierValidatedAccount.create
+      expect_raises(PgORM::Error::RecordInvalid) { supplier.create_validated_account(rejected: true) }
+      expect_raises(PgORM::Error::RecordInvalid) { supplier.create_validated_account!(rejected: true) }
+      ValidatedAccount.where(supplier_id: supplier.id).count.should eq 0
+
+      account = supplier.create_validated_account
+      account.persisted?.should be_true
+      account.supplier_id.should eq supplier.id
+    end
+
     it "test autosave: nil" do
       supplier = Supplier.new
 
@@ -291,6 +302,17 @@ describe PgORM::Associations do
       book.persisted?.should be_true
       book.id?.should_not be_nil
       author.id.should eq(book.author_id?)
+    end
+
+    it "raises when create fails validation" do
+      author = AuthorValidatedBooks.create(name: "Author")
+      expect_raises(PgORM::Error::RecordInvalid) { author.validated_books.create(name: "") }
+      expect_raises(PgORM::Error::RecordInvalid) { author.validated_books.create!(name: "") }
+      ValidatedBook.where(author_id: author.id).count.should eq 0
+
+      book = author.validated_books.create!(name: "Book")
+      book.persisted?.should be_true
+      book.author_id.should eq author.id
     end
 
     it "test delete" do

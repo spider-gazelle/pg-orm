@@ -310,9 +310,8 @@ This will add the following methods:
   object's foreign key is assigned and it is saved;
 - `build_association` builds the associated object, assigning its foreign key if this
   record is persisted;
-- `create_association` builds and saves (`save`) the associated object;
-- `create_association!` builds and saves (`save!`) the associated object, raising
-  `PgORM::Error::RecordInvalid` when validation fails. Both raise
+- `create_association` and `create_association!` build and save the associated object,
+  raising `PgORM::Error::RecordInvalid` when validation fails, like `create`. Both raise
   `PgORM::Error::RecordNotSaved` if this record has no id;
 - `reload_association` to reload the associated object.
 
@@ -344,6 +343,9 @@ This will add method
 For example a Parent class declares `has_many :children, class_name: Child` which will add:
 
 - `Parent#children : Relation(Child)` (similar to `Child.where(parent_id: parent.id)`)
+
+The relation can `build` children (setting the foreign key), and `create` or `create!` them,
+raising `PgORM::Error::RecordInvalid` when validation fails.
 
 | Parameter     |                                                                                                                                                                                                                                                                                                          | Default                                                     |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
@@ -861,23 +863,25 @@ prev_result = Article.order(:id)
   .paginate_cursor(before: next_result.prev_cursor, limit: 20)
 ```
 
-`before:` adds `cursor_column < before` to the query and keeps its order and limit, so with
-an ascending order it returns the first `limit` matching rows, which is the immediately
-preceding page only when it starts at the beginning of the result set.
+Pages follow the query's order of `cursor_column`, ascending or descending, and the query is
+ordered by `cursor_column` (ascending) if it isn't already. `before:` returns the page
+immediately before the cursor, in the same order.
 
-`next_cursor` and `prev_cursor` always hold the primary key (`id`) of the boundary records,
-even when `cursor_column` is set to another column. With a custom `cursor_column`, build the
-cursor from that column yourself:
+`next_cursor` and `prev_cursor` are the `cursor_column` values of the boundary records.
+Times are given with microsecond precision, matching what PostgreSQL stores:
 
 ```crystal
-result = Article.order(:created_at)
+result = Article.order(created_at: :desc)
   .paginate_cursor(limit: 20, cursor_column: :created_at)
 
-if last = result.records.last?
-  Article.order(:created_at)
-    .paginate_cursor(after: last.created_at.to_rfc3339(fraction_digits: 6), limit: 20, cursor_column: :created_at)
+if result.has_next?
+  Article.order(created_at: :desc)
+    .paginate_cursor(after: result.next_cursor, limit: 20, cursor_column: :created_at)
 end
 ```
+
+The cursor column should be unique (or made unique with a tiebreaker in the cursor value),
+otherwise rows sharing the boundary value can be skipped.
 
 ### Memory Efficiency
 

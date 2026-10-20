@@ -144,10 +144,10 @@ module PgORM
     #   assigned and it is saved;
     # - `build_association` builds the associated object, assigning its foreign
     #   key if this record is persisted;
-    # - `create_association` builds and saves (`save`) the associated object;
-    # - `create_association!` builds and saves (`save!`) the associated object,
-    #   raising `::PgORM::Error::RecordInvalid` when validation fails. Both
-    #   raise `::PgORM::Error::RecordNotSaved` if this record has no id;
+    # - `create_association` and `create_association!` build and save the
+    #   associated object, raising `::PgORM::Error::RecordInvalid` when
+    #   validation fails, like `create`. Both raise
+    #   `::PgORM::Error::RecordNotSaved` if this record has no id;
     # - `reload_association` to reload the associated object.
     #
     # For example an Account class declares `has_one :supplier` which will add:
@@ -229,7 +229,7 @@ module PgORM
 
       def create_{{name.id}}(**attributes) : {{class_name}}
         raise ::PgORM::Error::RecordNotSaved.new("can't initialize {{class_name}} for #{self.class.name} doesn't have an id.") unless id?
-        build_{{name.id}}(**attributes).tap(&.save)
+        build_{{name.id}}(**attributes).tap(&.save!)
       end
 
       def create_{{name.id}}!(**attributes) : {{class_name}}

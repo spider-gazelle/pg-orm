@@ -412,6 +412,40 @@ module PgORM
       builder
     end
 
+    # Reverses the direction of every order, i.e. to read results backwards
+    def reverse_orders! : self
+      return self unless orders = orders?
+      @orders = orders.map do |order|
+        case order
+        in Tuple(Symbol, Symbol)
+          {order[0], order[1] == :desc ? :asc : :desc}
+        in String
+          order.gsub(/\b(ASC|DESC)\b/i) do |direction|
+            direction.compare("ASC", case_insensitive: true) == 0 ? "DESC" : "ASC"
+          end
+        end
+      end
+      self
+    end
+
+    # `true` if results are ordered by *column* descending, `nil` if they aren't
+    # ordered by it
+    def descending?(column : Symbol | String) : Bool?
+      orders?.try &.each do |order|
+        case order
+        in Tuple(Symbol, Symbol)
+          return order[1] == :desc if order[0].to_s == column.to_s
+        in String
+          order.split(',').each do |clause|
+            if match = clause.strip.match(/\A"?#{Regex.escape(column.to_s)}"?(?:\s+(ASC|DESC))?\b/i)
+              return match[1]?.try(&.compare("DESC", case_insensitive: true)) == 0
+            end
+          end
+        end
+      end
+      nil
+    end
+
     def unscope(*args : Symbol) : self
       builder = dup
       builder.unscope!(*args)
