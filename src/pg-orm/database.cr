@@ -71,9 +71,8 @@ module PgORM::Database
 
   @@pool : DB::Database?
   @@read_pool : DB::Database?
-  @@connections = {} of UInt64 => DB::Connection
-  @@transactions = {} of UInt64 => DB::Transaction
   @@info : Info?
+  @@pool_lock = Mutex.new
 
   # Configures database connection settings.
   #
@@ -159,28 +158,34 @@ module PgORM::Database
   end
 
   def self.pool : DB::Database
-    @@pool ||= DB.open(Settings.to_uri)
+    @@pool || @@pool_lock.synchronize { @@pool ||= DB.open(Settings.to_uri) }
   end
 
   # The read-only replica connection pool, or `nil` when no replica is
   # configured. Lazily opened on first use.
   def self.read_pool? : DB::Database?
     if read_uri = Settings.read_uri?
-      @@read_pool ||= DB.open(read_uri)
+      @@read_pool || @@pool_lock.synchronize { @@read_pool ||= DB.open(read_uri) }
     end
   end
 
   def self.checkout : DB::Connection
-    @@connections[object_id] ||= pool.checkout
+    fiber = Fiber.current
+    fiber.pg_orm_connection ||= pool.checkout
   end
 
   def self.release : Nil
-    conn = @@connections.delete(object_id)
+    fiber = Fiber.current
+    conn = fiber.pg_orm_connection
+    tx = fiber.pg_orm_transaction
+    fiber.pg_orm_connection = nil
+    fiber.pg_orm_transaction = nil
+
     # Roll back a leftover (manually opened) transaction *before* the connection
     # goes back to the pool. If that rollback raises, the connection's
     # transaction state can no longer be trusted, so discard it rather than let
     # the pool reuse it — see `discard_on_failure`.
-    if (tx = @@transactions.delete(object_id)) && !tx.closed?
+    if tx && !tx.closed?
       begin
         tx.rollback
       rescue
@@ -212,7 +217,7 @@ module PgORM::Database
   end
 
   def self.with_connection(&)
-    if db = @@connections[object_id]?
+    if db = Fiber.current.pg_orm_connection
       yield db
     else
       begin
@@ -233,7 +238,7 @@ module PgORM::Database
   #   query is routed to the read-only replica.
   # - Otherwise the primary pool is used.
   def self.connection(read : Bool = false, &)
-    if db = @@connections[object_id]?
+    if db = Fiber.current.pg_orm_connection
       yield db
     elsif read && (read_pool = read_pool?)
       read_pool.using_connection { |db_| yield db_ }
@@ -243,11 +248,12 @@ module PgORM::Database
   end
 
   def self.begin_transaction : DB::Transaction
-    @@transactions[object_id] ||= checkout.begin_transaction
+    fiber = Fiber.current
+    fiber.pg_orm_transaction ||= checkout.begin_transaction
   end
 
   def self.transaction(&)
-    if tx = @@transactions[Fiber.current.object_id]?
+    if tx = Fiber.current.pg_orm_transaction
       transaction(tx.begin_transaction) { |tx_| yield tx_ }
     else
       with_connection do |conn|
@@ -266,8 +272,8 @@ module PgORM::Database
   end
 
   private def self.transaction(tx : DB::Transaction, &)
-    id = Fiber.current.object_id
-    @@transactions[id] = tx
+    fiber = Fiber.current
+    fiber.pg_orm_transaction = tx
 
     begin
       yield tx
@@ -279,9 +285,9 @@ module PgORM::Database
     ensure
       case tx
       when DB::TopLevelTransaction
-        @@transactions.delete(id)
+        fiber.pg_orm_transaction = nil
       when DB::SavePointTransaction
-        @@transactions[id] = tx.@parent
+        fiber.pg_orm_transaction = tx.@parent
       else
         raise "unsupported transaction type: #{tx.class.name}"
       end
@@ -344,12 +350,6 @@ module PgORM::Database
     return if @@cdc
     @@cdc = ChangeFeedHandler.new(Settings.to_uri)
     @@cdc.not_nil!.start
-  end
-
-  # :nodoc:
-  @[AlwaysInline]
-  private def self.object_id : UInt64
-    Fiber.current.object_id
   end
 
   struct Info
@@ -472,4 +472,15 @@ module PgORM::Database
       )
     end
   end
+end
+
+# A fiber's pinned connection and open transaction live on the fiber itself, so
+# no state is shared between fibers, whichever thread of a parallel execution
+# context they run on, and nothing outlives the fiber that holds it.
+class Fiber
+  # :nodoc:
+  property pg_orm_connection : DB::Connection? = nil
+
+  # :nodoc:
+  property pg_orm_transaction : DB::Transaction? = nil
 end

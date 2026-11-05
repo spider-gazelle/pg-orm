@@ -1,9 +1,9 @@
 require "./spec_helper"
 
 # PPT-2642. `release` is the single point where a connection goes back to the
-# pool, and it only rolls anything back when it finds this fiber's transaction
-# in `@@transactions`. A connection whose transaction is open but *not* recorded
-# there is therefore handed straight back to the pool with its `BEGIN` still
+# pool, and it only rolls anything back when it finds the transaction recorded
+# on this fiber. A connection whose transaction is open but *not* recorded is
+# therefore handed straight back to the pool with its `BEGIN` still
 # live.
 #
 # Once that happens the connection is unusable for writes for the life of the
